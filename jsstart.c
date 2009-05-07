@@ -87,6 +87,7 @@ int wait_for_chord() {
 }
 
 void spawn() {
+    int trial = trial_index++; // Must be before fork.
     if ((pid = fork())) {
         // Parent
         if (pid < 0) {
@@ -98,7 +99,7 @@ void spawn() {
 
     // Log name
     char log_file[256];
-    snprintf(log_file, 256, "%s%d.log", log_prefix, trial_index++);
+    snprintf(log_file, 256, "%s%d.log", log_prefix, trial);
 
     // Child
     int fd;
