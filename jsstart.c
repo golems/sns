@@ -104,7 +104,7 @@ void spawn() {
     fd = creat(log_file, S_IRUSR);
     dup2(fd, STDOUT_FILENO);
 
-    execv(process, process_args);
+    execvp(process, process_args);
 
     // We SHOULD NOT GET HERE
     perror("execv");
@@ -129,6 +129,8 @@ int main(int argc, char **argv) {
         spawn();
         watch();
     }
+
+    return 0;
 }
 
 
