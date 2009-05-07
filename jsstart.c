@@ -46,6 +46,7 @@ void parse_command_line(int argc, char **argv) {
                 break;
             case 'p':
                 log_prefix = optarg;
+                break;
             case '?':
                 print_usage_and_quit(argv[0]);
                 break;
@@ -102,6 +103,11 @@ void spawn() {
     // Child
     int fd;
     fd = creat(log_file, S_IRUSR);
+    if (fd < 0) {
+        eprintf("Unable to create log file: %s\n", log_file);
+        exit(-1);
+    }
+
     dup2(fd, STDOUT_FILENO);
 
     execvp(process, process_args);
