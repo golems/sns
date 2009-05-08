@@ -87,7 +87,14 @@ int wait_for_chord() {
 }
 
 void spawn() {
-    int trial = trial_index++; // Must be before fork.
+    // Look for existing logfile, increment trial index until we don't find one
+    struct stat st;
+    // Log name
+    char log_file[256];
+    do {
+        snprintf(log_file, 256, "%s%d.log", log_prefix, trial_index++);
+    } while (!stat(log_file, &st));
+
     if ((pid = fork())) {
         // Parent
         if (pid < 0) {
@@ -96,10 +103,6 @@ void spawn() {
         }
         return;
     }
-
-    // Log name
-    char log_file[256];
-    snprintf(log_file, 256, "%s%d.log", log_prefix, trial);
 
     // Child
     int fd;
