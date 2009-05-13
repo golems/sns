@@ -60,6 +60,10 @@ void parse_command_line(int argc, char **argv) {
 
     process = argv[optind++];
     process_args = &argv[optind];
+
+    int i;
+    for (i = 0; i < 256; i++)
+        printf("%d: %d\n", i, launch_chord[i]);
 }
 
 void open_js() {
@@ -68,6 +72,10 @@ void open_js() {
         perror("js_open");
         exit(-1);
     }
+}
+
+void close_js() {
+    js_close(js);
 }
 
 int wait_for_chord() {
@@ -94,6 +102,7 @@ void spawn() {
     do {
         snprintf(log_file, 256, "%s%d.log", log_prefix, trial_index++);
     } while (!stat(log_file, &st));
+    eprintf("Using log: %s\n", log_file);
 
     if ((pid = fork())) {
         // Parent
@@ -134,11 +143,13 @@ int main(int argc, char **argv) {
     memset(launch_chord, 0, 255);
     parse_command_line(argc, argv);
 
-    open_js();
-    while (!wait_for_chord()) {
+    do {
+        open_js();
+        wait_for_chord();
+        close_js();
         spawn();
         watch();
-    }
+    } while(1);
 
     return 0;
 }

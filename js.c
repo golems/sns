@@ -1,4 +1,4 @@
-
+#include <poll.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
@@ -93,21 +93,31 @@ js_event_t *js_poll_event(js_t *js) {
 }
 
 int js_poll_state(js_t *js) {
-    js_event_t *event = js_poll_event(js);
+    js_event_t *event;
+    int more = 0;
+    do {
+        event = js_poll_event(js);
 
-    if (event == NULL)
-        return -1;
+        if (event == NULL)
+            return -1;
+        
+        switch (event->type) {
+            case JS_EVENT_AXIS:
+                js->state.axes[event->number] = (double)event->value / 32768.0;
+                break;
+            case JS_EVENT_BUTTON:
+                js->state.buttons[event->number] = event->value;
+                break;
+            default:
+                break;
+        }
 
-    switch (event->type) {
-        case JS_EVENT_AXIS:
-            js->state.axes[event->number] = (double)event->value / 32768.0;
-            break;
-        case JS_EVENT_BUTTON:
-            js->state.buttons[event->number] = event->value;
-            break;
-        default:
-            break;
-    }
+        struct pollfd fd;
+        fd.fd = js->fd;
+        fd.events = POLLIN;
+        fd.revents = 0;
+        more = poll(&fd, 1, 0); 
+    } while (more);
 
     return 0;
 }
