@@ -73,12 +73,19 @@ static struct argp_option options[] = {
         .doc = "ach channel to use (default \"js\")"
     },
     {
+        .name = "axes",
+        .key = 'a',
+        .arg = "axis-count",
+        .flags = 0,
+        .doc = "number of joystick axes"
+    },
+    {
         .name = NULL,
         .key = 0,
         .arg = NULL,
         .flags = 0,
         .doc = NULL
-    }, 
+    } 
 };
 
 
@@ -99,14 +106,29 @@ static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_freq_hz = 10;
 static char *opt_ach_chan = "js";
+static int opt_axis_cnt = 6;
 
 
 int main( int argc, char **argv ) {
     argp_parse (&argp, argc, argv, 0, NULL, NULL);
+
+
+
+    // make msg struct
+    js_msg_t msg;
+    double axes[opt_axis_cnt];
+    js_msg_init(&msg);
+    msg.axes = axes;
+    msg.axes_max = opt_axis_cnt;
+    msg.axes_fill = opt_axis_cnt;
+    int n = js_msg_size( &msg );
+    uint8_t *buf = alloca( n );
+
     if( opt_verbosity ) {
-        fprintf(stderr, "Verbosity: %d\n", opt_verbosity);
-        fprintf(stderr, "jsdev:     %d\n", opt_jsdev);
-        fprintf(stderr, "channel:   %s\n", opt_ach_chan);
+        fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
+        fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
+        fprintf(stderr, "channel:      %s\n", opt_ach_chan);
+        fprintf(stderr, "message size: %d\n", n );
         fprintf(stderr,"-------\n");
     }
 
@@ -129,20 +151,18 @@ int main( int argc, char **argv ) {
 
 
     // loop
-    js_msg_t msg = {.axes = {0}, .buttons = 0};
-    int n = js_msg_size( &msg );
-    uint8_t *buf = alloca( n );
+
                         
     while(1) {
         assert(js);
-        memset(&msg, 0, sizeof(msg) );
-        memset(buf, 0, n );
         int i;
-        int n_axes = sizeof(msg.axes)/sizeof(double);
+        int n_axes = sizeof(axes)/sizeof(double);
         int n_buttons = sizeof(msg.buttons)*8;
+        memset(msg.axes, 0, sizeof(double)*n_axes );
+        msg.buttons = 0;
+        msg.axes_fill = n_axes;
+        memset(buf, 0, n );
         // poll js
-        assert(js);
-        memset(&msg, 0, sizeof(msg) );
         int status = js_poll_state( js );
         if (status != 0) {
             perror("js_poll_state");
@@ -207,6 +227,10 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
         break;
     case 'c':
         opt_ach_chan = strdup( arg );
+        break;
+    case 'a':
+        opt_axis_cnt = atoi(arg);
+        break;
     case 0:
         break;
     }

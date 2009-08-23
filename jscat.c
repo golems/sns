@@ -66,6 +66,13 @@ static struct argp_option options[] = {
         .doc = "ach channel to use (default \"js\")"
     },
     {
+        .name = "axes",
+        .key = 'a',
+        .arg = "axis_cnt",
+        .flags = 0,
+        .doc = "number of axes"
+    },
+    {
         .name = NULL,
         .key = 0,
         .arg = NULL,
@@ -92,6 +99,7 @@ static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_freq_hz = 10;
 static char *opt_ach_chan = "js";
+static int opt_axis_cnt = 6;
 
 
 int main( int argc, char **argv ) {
@@ -113,13 +121,20 @@ int main( int argc, char **argv ) {
 
     // loop
     
-    js_msg_t msg = {.axes = {0}, .buttons = 0};
-    int n = js_msg_size( &msg );
-    uint8_t *buf = alloca( n );
+    js_msg_t msg;
+    js_msg_init(&msg);
+    double axes[opt_axis_cnt];
+    msg.axes = axes;
+    msg.axes_max = sizeof(axes)/sizeof(double);
+    msg.axes_fill = opt_axis_cnt;
+    size_t n = js_msg_size( &msg );
+    uint8_t buf[n];
+
     while(1) {
         int i, r;
-        int n_axes = sizeof(msg.axes)/sizeof(double);
+        int n_axes = sizeof(axes)/sizeof(double);
         int n_buttons = sizeof(msg.buttons)*8;
+        memset(msg.axes, 0, sizeof(double) * n_axes );
         size_t frame_size;
 
         r = ach_wait_next(&chan, buf, n,  &frame_size, NULL );
@@ -139,12 +154,12 @@ int main( int argc, char **argv ) {
         }
 
         r = js_msg_decode(&msg, buf, frame_size );
-        assert( n == r );
+        assert( n >= r );
 
         // maybe print stuff
         
         fprintf(stderr,"axes:    [ ");
-        for( i = 0; i < n_axes; i ++ ) {
+        for( i = 0; i < msg.axes_fill; i ++ ) {
             double axis = msg.axes[i];
             fprintf(stderr, "%s%5.4f ", axis < 0 ? "": " ", axis );
         }
@@ -180,6 +195,10 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
         break;
     case 'c':
         opt_ach_chan = strdup( arg );
+        break;
+    case 'a':
+        opt_axis_cnt = atoi( arg );
+        break;
     case 0:
         break;
     }
