@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4  -*- */
 /*
- * Copyright (c) 2008, Georgia Tech Research Corporation
+ * Copyright (c) 2009, Georgia Tech Research Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,7 @@
 #include <argp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ach.h>
-#include <genmsg.h>
+#include <somatic.h>
 #include "js/js.h"
 #include "js/js_msg.h"
 
@@ -122,7 +121,6 @@ int main( int argc, char **argv ) {
     msg.axes_max = opt_axis_cnt;
     msg.axes_fill = opt_axis_cnt;
     int n = js_msg_size( &msg );
-    uint8_t *buf = alloca( n );
 
     if( opt_verbosity ) {
         fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
@@ -161,7 +159,6 @@ int main( int argc, char **argv ) {
         memset(msg.axes, 0, sizeof(double)*n_axes );
         msg.buttons = 0;
         msg.axes_fill = n_axes;
-        memset(buf, 0, n );
         // poll js
         int status = js_poll_state( js );
         if (status != 0) {
@@ -195,11 +192,10 @@ int main( int argc, char **argv ) {
         }
         // send msg
         {
-            js_msg_encode( buf, n, &msg );
-            
-            int r = ach_put( &chan, buf, n );
+            int r = SOMATIC_MSG_SEND_BUF_STACK( &chan, &msg, js_msg );
+           
             if( r != ACH_OK ) {
-                fprintf(stderr, "Error opening ach channel: %s\n", ach_result_to_string( r ));
+                fprintf(stderr, "Error putting on ach channel: %s\n", ach_result_to_string( r ));
                 exit(-1);
             }
         }
