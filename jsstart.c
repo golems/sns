@@ -44,7 +44,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <js/js.h>
+#include "js/js.h"
 
 #define eprintf(fmt, args...) fprintf(stderr, fmt, ## args)
 

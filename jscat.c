@@ -47,8 +47,8 @@
 #include <stdlib.h>
 #include <ach.h>
 #include <genmsg.h>
-#include <js/js.h>
-#include <js/js_msg.h>
+#include "js/js.h"
+#include "js/js_msg.h"
 
 static struct argp_option options[] = {
     {

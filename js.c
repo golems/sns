@@ -45,7 +45,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <js/js.h>
+#include "js/js.h"
 
 #define MAX_JOYSTICKS 256
 #define JOYSTICK_DIR "/dev/input"
