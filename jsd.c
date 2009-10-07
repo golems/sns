@@ -123,6 +123,7 @@ int main( int argc, char **argv ) {
     int n = js_msg_size( &msg );
 
     if( opt_verbosity ) {
+        fprintf(stderr, "\n* JSD *\n");
         fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
         fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
         fprintf(stderr, "channel:      %s\n", opt_ach_chan);
@@ -193,7 +194,6 @@ int main( int argc, char **argv ) {
         // send msg
         {
             int r = SOMATIC_MSG_SEND_BUF_STACK( &chan, &msg, js_msg );
-           
             if( r != ACH_OK ) {
                 fprintf(stderr, "Error putting on ach channel: %s\n", ach_result_to_string( r ));
                 exit(-1);
