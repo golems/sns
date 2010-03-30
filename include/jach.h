@@ -23,6 +23,9 @@ int jach_allocate_msg(Somatic__Joystick *msg, size_t n_axes, size_t n_buttons);
 // Publish message on Ach channel
 int jach_publish(Somatic__Joystick *msg, ach_channel_t *chan);
 
+// Receive a message from specified Ach channel
+Somatic__Joystick* jach_receive(ach_channel_t *chan);
+
 /*
  * Helper fn for debugging.  delete if you don't like
  * functions in header files

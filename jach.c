@@ -27,7 +27,7 @@ int jach_create_channel(const char *name, size_t frame_cnt, size_t frame_size) {
     {
         ach_create_attr_t attr;
         ach_create_attr_init(&attr);
-        i = ach_create( name, frame_cnt, frame_size, &attr );
+        i = ach_create( (char*)name, frame_cnt, frame_size, &attr );
     }
     somatic_hard_assert( ACH_OK == i, "Error creating channel: %s\n",
                              ach_result_to_string( i ) );
@@ -94,3 +94,24 @@ int jach_publish(Somatic__Joystick *msg, ach_channel_t *chan)
 	return(0);
 }
 
+Somatic__Joystick* jach_receive(ach_channel_t *chan)
+{
+    size_t n;
+    int r;
+    if( 0 == chan->seq_num ) {
+        r = ach_wait_last( chan, NULL, 0, &n, NULL );
+    } else {
+        r = ach_copy_last( chan, NULL, 0, &n );
+    }
+
+    somatic_hard_assert( ACH_OVERFLOW == r, "Unknown error: %s\n",
+                         ach_result_to_string( r ) );
+    uint8_t buf[n];
+    size_t nread;
+    r = ach_copy_last( chan, &buf[0], n, &nread );
+    somatic_hard_assert( n == nread &&
+                         (ACH_OK == r || ACH_MISSED_FRAME == r || ACH_STALE_FRAMES == r),
+                         "EZ fail: %s\n", ach_result_to_string( r ) );
+
+    return somatic__joystick__unpack( &protobuf_c_system_allocator, n, buf );
+}
