@@ -156,8 +156,6 @@ int main( int argc, char **argv ) {
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = jach_open(opt_ach_chan);
 
-//  Somatic__Joystick jach_msg;
-//  jach_allocate_msg(&jach_msg, 6, 2);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
