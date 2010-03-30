@@ -183,13 +183,13 @@ int main( int argc, char **argv ) {
   somatic_hard_assert( sn_r == 0, "Failed to open spacenav device\n");
 
   if (opt_create == 1)
-	  jach_create_channel(opt_ach_chan, 10, 4096);
+	  jach_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
 
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = jach_open(opt_ach_chan);
 
   Somatic__Joystick spnav_msg;
-  jach_allocate_msg(&spnav_msg, 6, 2);
+  jach_allocate_msg(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -201,8 +201,9 @@ int main( int argc, char **argv ) {
 
   while (!somatic_sig_received) {
 	  snach_read_to_msg(&spnav_msg);
-	  jach_print(&spnav_msg);
 	  jach_publish(&spnav_msg, chan);
+	  if( opt_verbosity )
+		  jach_print(&spnav_msg);
   }
 
   // Cleanup:

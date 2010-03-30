@@ -115,3 +115,16 @@ Somatic__Joystick* jach_receive(ach_channel_t *chan)
 
     return somatic__joystick__unpack( &protobuf_c_system_allocator, n, buf );
 }
+
+/*
+ * Print the contents of a Somatic__Joystick message
+ */
+void jach_print(Somatic__Joystick *msg){
+	int i;
+	for (i=0; i<msg->axes->n_data; ++i)
+		fprintf(stdout, "% 1.2lf::", msg->axes->data[i]);
+	fprintf(stdout, "[");
+	for (i=0; i<msg->buttons->n_data; ++i)
+		fprintf(stdout, "%lld::", msg->buttons->data[i]);
+	fprintf(stdout, "]\n");
+}

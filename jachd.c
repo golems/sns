@@ -38,7 +38,7 @@
  */
 
 //#define JNAV_MOTION_MAX 512
-#define JACH_NBUTTONS 11
+#define JACH_NBUTTONS 10 //11
 #define JACH_NAXES 6
 
 #include <argp.h>
@@ -67,7 +67,6 @@
 static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static int opt_freq_hz = 10;
 static char *opt_ach_chan = "joystick-data";
 static int opt_axis_cnt = JACH_NAXES;
 
@@ -191,13 +190,13 @@ int main( int argc, char **argv ) {
   somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
   if (opt_create == 1)
-	  jach_create_channel(opt_ach_chan, 10, 4096);
+	  jach_create_channel(opt_ach_chan, 10, 8); //8
 
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = jach_open(opt_ach_chan);
 
   Somatic__Joystick js_msg;
-  jach_allocate_msg(&js_msg, 6, 11);
+  jach_allocate_msg(&js_msg, JACH_NAXES, JACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -210,8 +209,9 @@ int main( int argc, char **argv ) {
 
   while (!somatic_sig_received) {
 	  jach_read_to_msg(&js_msg, js);
-	  jach_print(&js_msg);
 	  jach_publish(&js_msg, chan);
+	  if( opt_verbosity )
+		  jach_print(&js_msg);
   }
 
   // Cleanup:
