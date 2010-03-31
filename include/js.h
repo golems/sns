@@ -5,6 +5,9 @@
  * @author Jon Olson <jon@damogran.com>
  */
 
+#ifndef JS_H
+#define JS_H
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -106,3 +109,4 @@ void js_close(js_t *js);
 }
 #endif
 
+#endif // JS_H

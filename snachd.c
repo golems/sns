@@ -37,10 +37,6 @@
 /** Author: jscholz
  */
 
-#define SPNAV_MOTION_MAX 512
-#define SNACH_NBUTTONS 2
-#define SNACH_NAXES 6
-
 #include <argp.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -56,18 +52,18 @@
 
 #include <spnav.h>
 
-#include "include/jach.h"
+#include "include/js_smm.h"
 
 /* ----------- */
 /* GLOBAL VARS */
 /* ----------- */
-spnav_event spnevent; // The spnav event
+
 
 /* Option Vars */
 static int opt_sndev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static char *opt_ach_chan = "spacenav-data";
+static char *opt_ach_chan = SPACENAV_CHANNEL_NAME;
 static int opt_axis_cnt = SNACH_NAXES;
 
 /* ---------- */
@@ -138,35 +134,6 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
 /* Function Defs */
 /* ------------- */
 
-/**
- * Block, waiting for a mouse event
- */
-void snach_read_to_msg(Somatic__Joystick *msg)
-{
-	spnav_wait_event(&spnevent);
-
-	if (spnevent.type == SPNAV_EVENT_MOTION) {
-			msg->axes->data[0] = (double)spnevent.motion.x /  SPNAV_MOTION_MAX;
-			msg->axes->data[1] = (double)spnevent.motion.y /  SPNAV_MOTION_MAX;
-			msg->axes->data[2] = (double)spnevent.motion.z /  SPNAV_MOTION_MAX;
-			msg->axes->data[3] = (double)spnevent.motion.rx / SPNAV_MOTION_MAX;
-			msg->axes->data[4] = (double)spnevent.motion.ry / SPNAV_MOTION_MAX;
-			msg->axes->data[5] = (double)spnevent.motion.rz / SPNAV_MOTION_MAX;
-	}
-	else if (spnevent.type == SPNAV_EVENT_BUTTON) {
-		if (spnevent.button.bnum == 0) {
-			msg->buttons->data[0] = (int64_t)spnevent.button.press;
-		}
-		else if (spnevent.button.bnum == 1)  {
-			msg->buttons->data[1] = (int64_t)spnevent.button.press;
-		}
-		else {
-			//TODO remove this once it's tested:
-			printf("Shouldn't be here\n");
-			exit(-1);
-		}
-	}
-}
 
 /* ---- */
 /* MAIN */
@@ -178,18 +145,21 @@ int main( int argc, char **argv ) {
   // install signal handler
   somatic_sighandler_simple_install();
 
+  // spnav event
+  spnav_event spnevent;
+
   // Open spacenav device
   int sn_r = spnav_open();
   somatic_hard_assert( sn_r == 0, "Failed to open spacenav device\n");
 
   if (opt_create == 1)
-	  jach_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
+	  sutil_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = jach_open(opt_ach_chan);
+  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
 
   Somatic__Joystick spnav_msg;
-  jach_allocate_msg(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
+  somatic_joystick_allocate_msg(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -200,18 +170,18 @@ int main( int argc, char **argv ) {
   }
 
   while (!somatic_sig_received) {
-	  snach_read_to_msg(&spnav_msg);
-	  jach_publish(&spnav_msg, chan);
+	  snach_read_to_msg(&spnav_msg, &spnevent);
+	  somatic_joystick_publish(&spnav_msg, chan);
 	  if( opt_verbosity )
-		  jach_print(&spnav_msg);
+		  somatic_joystick_print(&spnav_msg);
   }
 
   // Cleanup:
-  jach_close(chan);
+  sutil_close_channel(chan);
   sn_r = spnav_close();
   somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
 
-  //TODO: cleanup memory and what not
+  somatic_joystick_free_msg(&spnav_msg);
 
   return 0;
 }

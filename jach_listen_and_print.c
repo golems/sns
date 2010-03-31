@@ -49,7 +49,7 @@
 #include <somatic/util.h>
 #include <somatic.pb-c.h>
 
-#include "include/jach.h"
+#include "include/js_smm.h"
 
 /* ----------- */
 /* GLOBAL VARS */
@@ -151,10 +151,10 @@ int main( int argc, char **argv ) {
   somatic_sighandler_simple_install();
 
   if (opt_create == 1)
-	  jach_create_channel(opt_ach_chan, 10, 4096);
+	  sutil_create_channel(opt_ach_chan, 10, 4096);
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = jach_open(opt_ach_chan);
+  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
 
 
   if( opt_verbosity ) {
@@ -165,10 +165,12 @@ int main( int argc, char **argv ) {
   }
 
   while (!somatic_sig_received) {
-	  Somatic__Joystick *jach_msg = jach_receive(chan);
-	  jach_print(jach_msg);
+	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan);
+	  somatic_joystick_print(jach_msg);
 	  somatic__joystick__free_unpacked( jach_msg, &protobuf_c_system_allocator );
   }
+
+  sutil_close_channel(chan);
 
   return 0;
 }

@@ -37,10 +37,6 @@
 /** Author: jscholz
  */
 
-//#define JNAV_MOTION_MAX 512
-#define JACH_NBUTTONS 10 //11
-#define JACH_NAXES 6
-
 #include <argp.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -57,7 +53,7 @@
 #include <spnav.h>
 
 #include "include/js.h"
-#include "include/jach.h"
+#include "include/js_smm.h"
 
 /* ----------- */
 /* GLOBAL VARS */
@@ -67,7 +63,7 @@
 static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static char *opt_ach_chan = "joystick-data";
+static char *opt_ach_chan = JOYSTICK_CHANNEL_NAME;
 static int opt_axis_cnt = JACH_NAXES;
 
 /* ---------- */
@@ -158,21 +154,6 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
 /* Function Defs */
 /* ------------- */
 
-/**
- * Block, waiting for a mouse event
- */
-void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
-{
-	int status = js_poll_state( js );
-	somatic_hard_assert( status == 0, "Failed to poll joystick\n");
-
-	int i;
-	for( i = 0; i < JACH_NAXES; i++ )
-		msg->axes->data[i] = js->state.axes[i];
-
-	for( i = 0; i < JACH_NBUTTONS; i++ )
-		msg->buttons->data[i] = (int64_t)js->state.buttons[i];
-}
 
 /* ---- */
 /* MAIN */
@@ -184,19 +165,18 @@ int main( int argc, char **argv ) {
   // install signal handler
   somatic_sighandler_simple_install();
 
-  // Open spacenav device
-  int sn_r = spnav_open();
+  // Open joystick device
   js_t *js = js_open( opt_jsdev );
   somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
   if (opt_create == 1)
-	  jach_create_channel(opt_ach_chan, 10, 8); //8
+	  sutil_create_channel(opt_ach_chan, 10, 8); //8
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = jach_open(opt_ach_chan);
+  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
 
   Somatic__Joystick js_msg;
-  jach_allocate_msg(&js_msg, JACH_NAXES, JACH_NBUTTONS);
+  somatic_joystick_allocate_msg(&js_msg, JACH_NAXES, JACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -209,17 +189,15 @@ int main( int argc, char **argv ) {
 
   while (!somatic_sig_received) {
 	  jach_read_to_msg(&js_msg, js);
-	  jach_publish(&js_msg, chan);
+	  somatic_joystick_publish(&js_msg, chan);
 	  if( opt_verbosity )
-		  jach_print(&js_msg);
+		  somatic_joystick_print(&js_msg);
   }
 
   // Cleanup:
-  jach_close(chan);
-  sn_r = spnav_close();
-  somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
-
-  //TODO: cleanup memory and what not
+  sutil_close_channel(chan);
+  js_close(js);
+  somatic_joystick_free_msg(&js_msg);
 
   return 0;
 }
