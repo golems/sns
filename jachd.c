@@ -55,10 +55,6 @@
 #include "include/js.h"
 #include "include/js_smm.h"
 
-/* ----------- */
-/* GLOBAL VARS */
-/* ----------- */
-
 /* Option Vars */
 static int opt_jsdev = 0;
 static int opt_verbosity = 0;
@@ -119,7 +115,7 @@ static struct argp_option options[] = {
 static int parse_opt( int key, char *arg, struct argp_state *state);
 /// argp program version
 const char *argp_program_version = "jsd-0.0.1";
-/// argp program arguments documention
+/// argp program arguments documentation
 static char args_doc[] = "";
 /// argp program doc line
 static char doc[] = "reads from linux joystick and pushes out ach messages";
@@ -144,6 +140,7 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
         break;
     case 'C':
     	opt_create = 1;
+    	break;
     case 0:
         break;
     }
@@ -170,10 +167,10 @@ int main( int argc, char **argv ) {
   somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
   if (opt_create == 1)
-	  sutil_create_channel(opt_ach_chan, 10, 8); //8
+	  somatic_create_channel(opt_ach_chan, 10, 8); //8
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
+  ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
   Somatic__Joystick js_msg;
   somatic_joystick_allocate_msg(&js_msg, JACH_NAXES, JACH_NBUTTONS);
@@ -195,7 +192,7 @@ int main( int argc, char **argv ) {
   }
 
   // Cleanup:
-  sutil_close_channel(chan);
+  somatic_close_channel(chan);
   js_close(js);
   somatic_joystick_free_msg(&js_msg);
 

@@ -124,6 +124,7 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
         break;
     case 'C':
     	opt_create = 1;
+    	break;
     case 0:
         break;
     }
@@ -153,10 +154,10 @@ int main( int argc, char **argv ) {
   somatic_hard_assert( sn_r == 0, "Failed to open spacenav device\n");
 
   if (opt_create == 1)
-	  sutil_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
+	  somatic_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
+  ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
   Somatic__Joystick spnav_msg;
   somatic_joystick_allocate_msg(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
@@ -177,7 +178,7 @@ int main( int argc, char **argv ) {
   }
 
   // Cleanup:
-  sutil_close_channel(chan);
+  somatic_close_channel(chan);
   sn_r = spnav_close();
   somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
 

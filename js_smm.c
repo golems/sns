@@ -112,7 +112,6 @@ Somatic__Joystick* somatic_joystick_receive(ach_channel_t *chan)
     int r;
 //    if( 0 == chan->seq_num ) {
         r = ach_wait_last( chan, NULL, 0, &n, NULL );
-//        printf("got here\n");
 //    } else {
 //        r = ach_copy_last( chan, NULL, 0, &n );
 //    }

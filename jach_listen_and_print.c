@@ -151,10 +151,10 @@ int main( int argc, char **argv ) {
   somatic_sighandler_simple_install();
 
   if (opt_create == 1)
-	  sutil_create_channel(opt_ach_chan, 10, 4096);
+	  somatic_create_channel(opt_ach_chan, 10, 8);
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = sutil_open_channel(opt_ach_chan);
+  ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
 
   if( opt_verbosity ) {
@@ -170,7 +170,7 @@ int main( int argc, char **argv ) {
 	  somatic__joystick__free_unpacked( jach_msg, &protobuf_c_system_allocator );
   }
 
-  sutil_close_channel(chan);
+  somatic_close_channel(chan);
 
   return 0;
 }
