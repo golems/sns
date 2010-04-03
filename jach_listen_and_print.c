@@ -60,11 +60,9 @@
 /* ARGP Junk  */
 /* ---------- */
 /* Option Vars */
-static int opt_sndev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static char *opt_ach_chan = "spacenav-data";
-static int opt_axis_cnt = 6;
+static const char *opt_ach_chan = SPACENAV_CHANNEL_NAME;
 
 /* ---------- */
 /* ARGP Junk  */
@@ -129,10 +127,6 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
     }
     return 0;
 }
-
-/* ------- */
-/* GLOBALS */
-/* ------- */
 
 
 /* --------------------- */

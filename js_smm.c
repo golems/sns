@@ -52,51 +52,6 @@ int somatic_joystick_free_msg(Somatic__Joystick *msg)
 	return(0);
 }
 
-/**
- * Block, waiting for a mouse event
- */
-void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
-{
-	int status = js_poll_state( js );
-	somatic_hard_assert( status == 0, "Failed to poll joystick\n");
-
-	int i;
-	for( i = 0; i < JACH_NAXES; i++ )
-		msg->axes->data[i] = js->state.axes[i];
-
-	for( i = 0; i < JACH_NBUTTONS; i++ )
-		msg->buttons->data[i] = (int64_t)js->state.buttons[i];
-}
-
-/**
- * Block, waiting for a mouse event
- */
-void snach_read_to_msg(Somatic__Joystick *msg, spnav_event *spnevent)
-{
-	spnav_wait_event(spnevent);
-
-	if (spnevent->type == SPNAV_EVENT_MOTION) {
-			msg->axes->data[0] = (double)spnevent->motion.x /  SPNAV_MOTION_MAX;
-			msg->axes->data[1] = (double)spnevent->motion.y /  SPNAV_MOTION_MAX;
-			msg->axes->data[2] = (double)spnevent->motion.z /  SPNAV_MOTION_MAX;
-			msg->axes->data[3] = (double)spnevent->motion.rx / SPNAV_MOTION_MAX;
-			msg->axes->data[4] = (double)spnevent->motion.ry / SPNAV_MOTION_MAX;
-			msg->axes->data[5] = (double)spnevent->motion.rz / SPNAV_MOTION_MAX;
-	}
-	else if (spnevent->type == SPNAV_EVENT_BUTTON) {
-		if (spnevent->button.bnum == 0) {
-			msg->buttons->data[0] = (int64_t)spnevent->button.press;
-		}
-		else if (spnevent->button.bnum == 1)  {
-			msg->buttons->data[1] = (int64_t)spnevent->button.press;
-		}
-		else {
-			//TODO remove this once it's tested:
-			printf("Shouldn't be here\n");
-			exit(-1);
-		}
-	}
-}
 
 int somatic_joystick_publish(Somatic__Joystick *msg, ach_channel_t *chan)
 {
@@ -106,6 +61,7 @@ int somatic_joystick_publish(Somatic__Joystick *msg, ach_channel_t *chan)
 	return(r);
 }
 
+//TODO replace this with new somatic macro
 Somatic__Joystick* somatic_joystick_receive(ach_channel_t *chan)
 {
     size_t n;
@@ -132,7 +88,7 @@ Somatic__Joystick* somatic_joystick_receive(ach_channel_t *chan)
  * Print the contents of a Somatic__Joystick message
  */
 void somatic_joystick_print(Somatic__Joystick *msg){
-	int i;
+	size_t i;
 	for (i=0; i<msg->axes->n_data; ++i)
 		fprintf(stdout, "% 1.2lf::", msg->axes->data[i]);
 	fprintf(stdout, "[");

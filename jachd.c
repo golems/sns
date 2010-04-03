@@ -151,6 +151,21 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
 /* Function Defs */
 /* ------------- */
 
+/**
+ * Block, waiting for a mouse event
+ */
+void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
+{
+	int status = js_poll_state( js );
+	somatic_hard_assert( status == 0, "Failed to poll joystick\n");
+
+	int i;
+	for( i = 0; i < JACH_NAXES; i++ )
+		msg->axes->data[i] = js->state.axes[i];
+
+	for( i = 0; i < JACH_NBUTTONS; i++ )
+		msg->buttons->data[i] = (int64_t)js->state.buttons[i];
+}
 
 /* ---- */
 /* MAIN */
