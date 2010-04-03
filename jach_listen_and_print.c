@@ -48,8 +48,7 @@
 
 #include <somatic/util.h>
 #include <somatic.pb-c.h>
-
-#include "include/js_smm.h"
+#include <somatic/msg/joystick.h>
 
 /* ----------- */
 /* GLOBAL VARS */
@@ -158,8 +157,11 @@ int main( int argc, char **argv ) {
       fprintf(stderr,"-------\n");
   }
 
+  int ach_result;
+  size_t msg_size = 1024;
+
   while (!somatic_sig_received) {
-	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan);
+	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan, &ach_result, msg_size, NULL, &protobuf_c_system_allocator);
 	  somatic_joystick_print(jach_msg);
 	  somatic__joystick__free_unpacked( jach_msg, &protobuf_c_system_allocator );
   }

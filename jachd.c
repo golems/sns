@@ -49,17 +49,16 @@
 
 #include <somatic/util.h>
 #include <somatic.pb-c.h>
-
-#include <spnav.h>
+#include <somatic/msg/joystick.h>
 
 #include "include/js.h"
-#include "include/js_smm.h"
+
 
 /* Option Vars */
 static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static char *opt_ach_chan = JOYSTICK_CHANNEL_NAME;
+static const char *opt_ach_chan = JOYSTICK_CHANNEL_NAME;
 static int opt_axis_cnt = JACH_NAXES;
 
 /* ---------- */
@@ -188,7 +187,7 @@ int main( int argc, char **argv ) {
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
   Somatic__Joystick js_msg;
-  somatic_joystick_allocate_msg(&js_msg, JACH_NAXES, JACH_NBUTTONS);
+  somatic_joystick_alloc(&js_msg, JACH_NAXES, JACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -209,7 +208,7 @@ int main( int argc, char **argv ) {
   // Cleanup:
   somatic_close_channel(chan);
   js_close(js);
-  somatic_joystick_free_msg(&js_msg);
+  somatic_joystick_free(&js_msg);
 
   return 0;
 }

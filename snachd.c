@@ -49,10 +49,9 @@
 
 #include <somatic/util.h>
 #include <somatic.pb-c.h>
+#include <somatic/msg/joystick.h>
 
 #include <spnav.h>
-
-#include "include/js_smm.h"
 
 /* ----------- */
 /* GLOBAL VARS */
@@ -187,7 +186,7 @@ int main( int argc, char **argv ) {
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
   Somatic__Joystick spnav_msg;
-  somatic_joystick_allocate_msg(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
+  somatic_joystick_alloc(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
@@ -209,7 +208,7 @@ int main( int argc, char **argv ) {
   sn_r = spnav_close();
   somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
 
-  somatic_joystick_free_msg(&spnav_msg);
+  somatic_joystick_free(&spnav_msg);
 
   return 0;
 }
