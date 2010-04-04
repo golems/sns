@@ -185,22 +185,21 @@ int main( int argc, char **argv ) {
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
-  Somatic__Joystick spnav_msg;
-  somatic_joystick_alloc(&spnav_msg, SNACH_NAXES, SNACH_NBUTTONS);
+  Somatic__Joystick *spnav_msg = somatic_joystick_alloc(SNACH_NAXES, SNACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
       fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
       fprintf(stderr, "channel:      %s\n", opt_ach_chan);
-      fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(&spnav_msg) );
+      fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(spnav_msg) );
       fprintf(stderr,"-------\n");
   }
 
   while (!somatic_sig_received) {
-	  snach_read_to_msg(&spnav_msg, &spnevent);
-	  somatic_joystick_publish(&spnav_msg, chan);
+	  snach_read_to_msg(spnav_msg, &spnevent);
+	  somatic_joystick_publish(spnav_msg, chan);
 	  if( opt_verbosity )
-		  somatic_joystick_print(&spnav_msg);
+		  somatic_joystick_print(spnav_msg);
   }
 
   // Cleanup:
@@ -208,7 +207,7 @@ int main( int argc, char **argv ) {
   sn_r = spnav_close();
   somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
 
-  somatic_joystick_free(&spnav_msg);
+  somatic_joystick_free(spnav_msg);
 
   return 0;
 }

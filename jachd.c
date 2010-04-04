@@ -186,29 +186,28 @@ int main( int argc, char **argv ) {
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
-  Somatic__Joystick js_msg;
-  somatic_joystick_alloc(&js_msg, JACH_NAXES, JACH_NBUTTONS);
+  Somatic__Joystick *js_msg = somatic_joystick_alloc(JACH_NAXES, JACH_NBUTTONS);
 
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
       fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
       fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
       fprintf(stderr, "channel:      %s\n", opt_ach_chan);
-      fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(&js_msg) );
+      fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(js_msg) );
       fprintf(stderr,"-------\n");
   }
 
   while (!somatic_sig_received) {
-	  jach_read_to_msg(&js_msg, js);
-	  somatic_joystick_publish(&js_msg, chan);
+	  jach_read_to_msg(js_msg, js);
+	  somatic_joystick_publish(js_msg, chan);
 	  if( opt_verbosity )
-		  somatic_joystick_print(&js_msg);
+		  somatic_joystick_print(js_msg);
   }
 
   // Cleanup:
   somatic_close_channel(chan);
   js_close(js);
-  somatic_joystick_free(&js_msg);
+  somatic_joystick_free(js_msg);
 
   return 0;
 }

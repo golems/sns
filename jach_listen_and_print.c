@@ -149,7 +149,6 @@ int main( int argc, char **argv ) {
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
 
-
   if( opt_verbosity ) {
       fprintf(stderr, "\n* JSD *\n");
       fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
@@ -162,6 +161,7 @@ int main( int argc, char **argv ) {
 
   while (!somatic_sig_received) {
 	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan, &ach_result, msg_size, NULL, &protobuf_c_system_allocator);
+	  somatic_hard_assert(ach_result == ACH_OK,"Ach wait failure\n");
 	  somatic_joystick_print(jach_msg);
 	  somatic__joystick__free_unpacked( jach_msg, &protobuf_c_system_allocator );
   }
