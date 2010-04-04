@@ -200,6 +200,7 @@ int main( int argc, char **argv ) {
   while (!somatic_sig_received) {
 	  jach_read_to_msg(js_msg, js);
 	  somatic_joystick_publish(js_msg, chan);
+
 	  if( opt_verbosity )
 		  somatic_joystick_print(js_msg);
   }

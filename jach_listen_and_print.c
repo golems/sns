@@ -156,9 +156,12 @@ int main( int argc, char **argv ) {
       fprintf(stderr,"-------\n");
   }
 
+  /*
+   *  used "size_t size = somatic__joystick__get_packed_size(js_msg);"
+   *  in jachd to find the size after packing a message
+   */
+  size_t msg_size = 78; // the size of the joystick message (spacenav is smaller)
   int ach_result;
-  size_t msg_size = 1024;
-
   while (!somatic_sig_received) {
 	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan, &ach_result, msg_size, NULL, &protobuf_c_system_allocator);
 	  somatic_hard_assert(ach_result == ACH_OK,"Ach wait failure\n");
