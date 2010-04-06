@@ -61,7 +61,7 @@
 /* Option Vars */
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static const char *opt_ach_chan = SPACENAV_CHANNEL_NAME;
+static const char *opt_ach_chan = JOYSTICK_CHANNEL_NAME;
 
 /* ---------- */
 /* ARGP Junk  */
