@@ -50,6 +50,8 @@
 #include <somatic.pb-c.h>
 #include <somatic/msg/joystick.h>
 
+#include "include/jachd.h"
+
 /* ----------- */
 /* GLOBAL VARS */
 /* ----------- */
@@ -160,10 +162,9 @@ int main( int argc, char **argv ) {
    *  used "size_t size = somatic__joystick__get_packed_size(js_msg);"
    *  in jachd to find the size after packing a message
    */
-  size_t msg_size = 78; // the size of the joystick message (spacenav is smaller)
   int ach_result;
   while (!somatic_sig_received) {
-	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan, &ach_result, msg_size, NULL, &protobuf_c_system_allocator);
+	  Somatic__Joystick *jach_msg = somatic_joystick_receive(chan, &ach_result, JOYSTICK_CHANNEL_SIZE, NULL, &protobuf_c_system_allocator);
 	  somatic_hard_assert(ach_result == ACH_OK,"Ach wait failure\n");
 	  somatic_joystick_print(jach_msg);
 	  somatic__joystick__free_unpacked( jach_msg, &protobuf_c_system_allocator );

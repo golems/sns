@@ -52,7 +52,7 @@
 #include <somatic/msg/joystick.h>
 
 #include "include/js.h"
-
+#include "include/jachd.h"
 
 /* Option Vars */
 static int opt_jsdev = 0;
@@ -181,7 +181,7 @@ int main( int argc, char **argv ) {
   somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
   if (opt_create == 1)
-	  somatic_create_channel(opt_ach_chan, 10, 8); //8
+	  somatic_create_channel(opt_ach_chan, 10, JOYSTICK_CHANNEL_SIZE);
 
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
