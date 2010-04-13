@@ -52,6 +52,7 @@
 #include <somatic/msg/joystick.h>
 
 #include <spnav.h>
+#include "include/jachd.h"
 
 /* ----------- */
 /* GLOBAL VARS */
@@ -184,6 +185,7 @@ int main( int argc, char **argv ) {
 
   // Open the ach channel for the spacenav data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
+  ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
 
   Somatic__Joystick *spnav_msg = somatic_joystick_alloc(SNACH_NAXES, SNACH_NBUTTONS);
 

@@ -113,7 +113,7 @@ static struct argp_option options[] = {
 /// argp parsing function
 static int parse_opt( int key, char *arg, struct argp_state *state);
 /// argp program version
-const char *argp_program_version = "jsd-0.0.1";
+const char *argp_program_version = "jachd-0.0.1";
 /// argp program arguments documentation
 static char args_doc[] = "";
 /// argp program doc line
@@ -183,8 +183,9 @@ int main( int argc, char **argv ) {
   if (opt_create == 1)
 	  somatic_create_channel(opt_ach_chan, 10, JOYSTICK_CHANNEL_SIZE);
 
-  // Open the ach channel for the spacenav data
+  // Open the ach channel for joystick data
   ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
+  ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
 
   Somatic__Joystick *js_msg = somatic_joystick_alloc(JACH_NAXES, JACH_NBUTTONS);
 
