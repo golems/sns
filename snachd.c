@@ -140,13 +140,14 @@ void snach_read_to_msg(Somatic__Joystick *msg, spnav_event *spnevent)
 {
 	spnav_wait_event(spnevent);
 
+	// Axes switch on purpose because they seem to be incorrectly labeled in driver (initial=xzyRYP)
 	if (spnevent->type == SPNAV_EVENT_MOTION) {
 			msg->axes->data[0] = (double)spnevent->motion.x /  SPNAV_MOTION_MAX;
-			msg->axes->data[1] = (double)spnevent->motion.y /  SPNAV_MOTION_MAX;
-			msg->axes->data[2] = (double)spnevent->motion.z /  SPNAV_MOTION_MAX;
+			msg->axes->data[2] = (double)spnevent->motion.y /  SPNAV_MOTION_MAX;
+			msg->axes->data[1] = (double)spnevent->motion.z /  SPNAV_MOTION_MAX;
 			msg->axes->data[3] = (double)spnevent->motion.rx / SPNAV_MOTION_MAX;
-			msg->axes->data[4] = (double)spnevent->motion.ry / SPNAV_MOTION_MAX;
-			msg->axes->data[5] = (double)spnevent->motion.rz / SPNAV_MOTION_MAX;
+			msg->axes->data[5] = (double)spnevent->motion.ry / SPNAV_MOTION_MAX;
+			msg->axes->data[4] = (double)spnevent->motion.rz / SPNAV_MOTION_MAX;
 	}
 	else if (spnevent->type == SPNAV_EVENT_BUTTON) {
 		if (spnevent->button.bnum == 0) {
