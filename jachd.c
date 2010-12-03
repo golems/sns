@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 2  -*- */
+/* -*- mode: C; c-basic-offset: 4  -*- */
+/* ex: set shiftwidth=4 expandtab: */ 
 /*
  * Copyright (c) 2010, Georgia Tech Research Corporation
  * All rights reserved.
@@ -155,15 +156,15 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
  */
 void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
 {
-	int status = js_poll_state( js );
-	somatic_hard_assert( status == 0, "Failed to poll joystick\n");
+    int status = js_poll_state( js );
+    somatic_hard_assert( status == 0, "Failed to poll joystick\n");
 
-	int i;
-	for( i = 0; i < JACH_NAXES; i++ )
-		msg->axes->data[i] = js->state.axes[i];
+    int i;
+    for( i = 0; i < JACH_NAXES; i++ )
+        msg->axes->data[i] = js->state.axes[i];
 
-	for( i = 0; i < JACH_NBUTTONS; i++ )
-		msg->buttons->data[i] = (int64_t)js->state.buttons[i];
+    for( i = 0; i < JACH_NBUTTONS; i++ )
+        msg->buttons->data[i] = (int64_t)js->state.buttons[i];
 }
 
 /* ---- */
@@ -171,47 +172,47 @@ void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
 /* ---- */
 int main( int argc, char **argv ) {
 
-  argp_parse (&argp, argc, argv, 0, NULL, NULL);
+    argp_parse (&argp, argc, argv, 0, NULL, NULL);
 
-  // install signal handler
-  somatic_sighandler_simple_install();
+    // install signal handler
+    somatic_sighandler_simple_install();
 
-  // Open joystick device
-  js_t *js = js_open( opt_jsdev );
-  somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
+    // Open joystick device
+    js_t *js = js_open( opt_jsdev );
+    somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
-  if (opt_create == 1)
-	  somatic_create_channel(opt_ach_chan, 10, JOYSTICK_CHANNEL_SIZE);
+    if (opt_create == 1)
+        somatic_create_channel(opt_ach_chan, 10, JOYSTICK_CHANNEL_SIZE);
 
-  // Open the ach channel for joystick data
-  ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
-  ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
+    // Open the ach channel for joystick data
+    ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
+    ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
 
-  Somatic__Joystick *js_msg = somatic_joystick_alloc(JACH_NAXES, JACH_NBUTTONS);
+    Somatic__Joystick *js_msg = somatic_joystick_alloc(JACH_NAXES, JACH_NBUTTONS);
 
-  if( opt_verbosity ) {
-      fprintf(stderr, "\n* JSD *\n");
-      fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
-      fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
-      fprintf(stderr, "channel:      %s\n", opt_ach_chan);
-      fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(js_msg) );
-      fprintf(stderr,"-------\n");
-  }
+    if( opt_verbosity ) {
+        fprintf(stderr, "\n* JSD *\n");
+        fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
+        fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
+        fprintf(stderr, "channel:      %s\n", opt_ach_chan);
+        fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(js_msg) );
+        fprintf(stderr,"-------\n");
+    }
 
-  while (!somatic_sig_received) {
-	  jach_read_to_msg(js_msg, js);
-	  somatic_joystick_publish(js_msg, chan);
+    while (!somatic_sig_received) {
+        jach_read_to_msg(js_msg, js);
+        somatic_joystick_publish(js_msg, chan);
 
-	  if( opt_verbosity )
-		  somatic_joystick_print(js_msg);
-  }
+        if( opt_verbosity )
+            somatic_joystick_print(js_msg);
+    }
 
-  // Cleanup:
-  somatic_close_channel(chan);
-  js_close(js);
-  somatic_joystick_free(js_msg);
+    // Cleanup:
+    somatic_close_channel(chan);
+    js_close(js);
+    somatic_joystick_free(js_msg);
 
-  return 0;
+    return 0;
 }
 
 
