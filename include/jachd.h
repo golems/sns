@@ -17,12 +17,6 @@
  */
 #define JOYSTICK_CHANNEL_SIZE 78
 
-/**
- * Message size params
- */
-#define JACH_NBUTTONS 10
-#define JACH_NAXES 6
-
 #define SPACENAV_CHANNEL_NAME "spacenav-data"
 
 

@@ -49,8 +49,7 @@
 #include <ach.h>
 
 #include <somatic/util.h>
-#include <somatic.pb-c.h>
-#include <somatic/msg/joystick.h>
+#include <somatic.h>
 
 #include "include/js.h"
 #include "include/jachd.h"
@@ -59,8 +58,9 @@
 static int opt_jsdev = 0;
 static int opt_verbosity = 0;
 static int opt_create = 0;
-static const char *opt_ach_chan = JOYSTICK_CHANNEL_NAME;
-static int opt_axis_cnt = JACH_NAXES;
+static const char *opt_chan_name = JOYSTICK_CHANNEL_NAME;
+static int opt_axis_cnt = 6;
+static int opt_button_cnt = 10;
 
 /* ---------- */
 /* ARGP Junk  */
@@ -133,7 +133,7 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
         opt_verbosity++;
         break;
     case 'c':
-        opt_ach_chan = strdup( arg );
+        opt_chan_name = strdup( arg );
         break;
     case 'a':
         opt_axis_cnt = atoi(arg);
@@ -160,10 +160,10 @@ void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
     somatic_hard_assert( status == 0, "Failed to poll joystick\n");
 
     int i;
-    for( i = 0; i < JACH_NAXES; i++ )
+    for( i = 0; i < opt_axis_cnt; i++ )
         msg->axes->data[i] = js->state.axes[i];
 
-    for( i = 0; i < JACH_NBUTTONS; i++ )
+    for( i = 0; i < opt_button_cnt; i++ )
         msg->buttons->data[i] = (int64_t)js->state.buttons[i];
 }
 
@@ -181,34 +181,30 @@ int main( int argc, char **argv ) {
     js_t *js = js_open( opt_jsdev );
     somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
-    if (opt_create == 1)
-        somatic_create_channel(opt_ach_chan, 10, JOYSTICK_CHANNEL_SIZE);
 
     // Open the ach channel for joystick data
-    ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
-    ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
+    ach_channel_t chan;
+    int r = ach_open(&chan, opt_chan_name, NULL);
+    somatic_hard_assert( r == 0, "Failed to open channel %s\n", opt_chan_name);
 
-    Somatic__Joystick *js_msg = somatic_joystick_alloc(JACH_NAXES, JACH_NBUTTONS);
+    Somatic__Joystick *js_msg = somatic_joystick_alloc(opt_axis_cnt, opt_button_cnt);
 
     if( opt_verbosity ) {
         fprintf(stderr, "\n* JSD *\n");
         fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
         fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
-        fprintf(stderr, "channel:      %s\n", opt_ach_chan);
+        fprintf(stderr, "channel:      %s\n", opt_chan_name);
         fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(js_msg) );
         fprintf(stderr,"-------\n");
     }
 
     while (!somatic_sig_received) {
         jach_read_to_msg(js_msg, js);
-        somatic_joystick_publish(js_msg, chan);
-
-        if( opt_verbosity )
-            somatic_joystick_print(js_msg);
+        r = SOMATIC_PACK_SEND( &chan, somatic__joystick, js_msg );
     }
 
     // Cleanup:
-    somatic_close_channel(chan);
+    ach_close(&chan);
     js_close(js);
     somatic_joystick_free(js_msg);
 
