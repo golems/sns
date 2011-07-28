@@ -45,11 +45,13 @@
 #include <stdint.h>
 
 #include <somatic.h>
+#include <somatic/daemon.h>
 #include <ach.h>
+#include <amino.h>
 
 #include <somatic/util.h>
 #include <somatic.pb-c.h>
-#include <somatic/msg/joystick.h>
+#include <somatic/msg.h>
 
 #include <spnav.h>
 #include "include/jachd.h"
@@ -63,6 +65,10 @@
 static int opt_verbosity = 0;
 static int opt_create = 0;
 static const char *opt_ach_chan = SPACENAV_CHANNEL_NAME;
+
+struct snachd_cx {
+  somatic_d_t d;
+} CX;
 
 /* ---------- */
 /* ARGP Junk  */
@@ -171,6 +177,10 @@ int main( int argc, char **argv ) {
 
   argp_parse (&argp, argc, argv, 0, NULL, NULL);
 
+  somatic_d_opts_t opts;
+  opts.ident = "snachd";
+  somatic_d_init(&CX.d, &opts );
+
   // install signal handler
   somatic_sighandler_simple_install();
 
@@ -179,14 +189,11 @@ int main( int argc, char **argv ) {
 
   // Open spacenav device
   int sn_r = spnav_open();
-  somatic_hard_assert( sn_r == 0, "Failed to open spacenav device\n");
-
-  if (opt_create == 1)
-	  somatic_create_channel(opt_ach_chan, 10, 8); // 8 bytes * (6 axes + 2 buttons) = 64... why does it work with just 8??
+  somatic_hard_assert( sn_r == 0, "Failed to open spacenav device: %d\n", sn_r);
 
   // Open the ach channel for the spacenav data
-  ach_channel_t *chan = somatic_open_channel(opt_ach_chan);
-  ach_chmod( chan, SOMATIC_CHANNEL_MODE ); // Not needed if called in somatic_open_channel
+  ach_channel_t chan;
+  somatic_d_channel_open(&CX.d, &chan, opt_ach_chan, NULL);
 
   Somatic__Joystick *spnav_msg = somatic_joystick_alloc(SNACH_NAXES, SNACH_NBUTTONS);
 
@@ -200,17 +207,18 @@ int main( int argc, char **argv ) {
 
   while (!somatic_sig_received) {
 	  snach_read_to_msg(spnav_msg, &spnevent);
-	  somatic_joystick_publish(spnav_msg, chan);
+	  SOMATIC_PACK_SEND( &chan, somatic__joystick, spnav_msg );
 	  if( opt_verbosity )
-		  somatic_joystick_print(spnav_msg);
+            aa_dump_vec( stdout, spnav_msg->axes->data, spnav_msg->axes->n_data );
   }
 
   // Cleanup:
-  somatic_close_channel(chan);
+  somatic_d_channel_close(&CX.d, &chan );
   sn_r = spnav_close();
   somatic_hard_assert( sn_r == 0, "Failed to close spacenav device\n");
 
   somatic_joystick_free(spnav_msg);
+  somatic_d_destroy( &CX.d );
 
   return 0;
 }
