@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4  -*- */
 /* ex: set shiftwidth=4 expandtab: */ 
 /*
- * Copyright (c) 2010, Georgia Tech Research Corporation
+ * Copyright (c) 2010-2011, Georgia Tech Research Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,25 +39,13 @@
  */
 
 #include <argp.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdint.h>
 #include <syslog.h>
-
 #include <somatic.h>
 #include <somatic/daemon.h>
-#include <ach.h>
-
-#include <somatic/util.h>
-#include <somatic.h>
-
 #include "js.h"
-#include "jachd.h"
 
 
-
+// context struct
 typedef struct {
     somatic_d_t d;
     somatic_d_opts_t d_opts;
@@ -95,7 +83,7 @@ static struct argp_option options[] = {
         .key = 'c',
         .arg = "channel",
         .flags = 0,
-        .doc = "ach channel to use (default \"joystick-data\")"
+        .doc = "ach channel to use"
     },
     {
         .name = "axes",
@@ -174,7 +162,7 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
 /**
  * Block, waiting for a mouse event
  */
-int jach_read_to_msg( Somatic__Joystick *msg, js_t *js )
+static int jach_read_to_msg( Somatic__Joystick *msg, js_t *js )
 {
     int status = js_poll_state( js );
     if( !status ) {
@@ -224,6 +212,36 @@ static int create_timer(cx_t *cx) {
     return 0;
 }
 
+static void jach_run( cx_t *cx, Somatic__Joystick *msg, js_t *js ) {
+    somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__NOTICE,
+                     SOMATIC__EVENT__CODES__PROC_RUNNING, 
+                     NULL, NULL );
+    // main loop
+    while (!somatic_sig_received) {
+        int status = jach_read_to_msg( msg, js );
+        if( !status || (EINTR == errno) ) {
+            // ok, send the message
+            somatic_metadata_set_time_timespec( msg->meta, aa_tm_now() );
+            SOMATIC_D_PUT(somatic__joystick, &cx->d, &cx->chan, msg );
+        } else if( EAGAIN  == errno ) {
+            // some system limit, try again
+            somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__ERR,
+                             SOMATIC__EVENT__CODES__DEV_ERR, 
+                             "joystick", "EAGAIN in system call");
+        } else {
+            // failed, give up
+            somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__EMERG,
+                             SOMATIC__EVENT__CODES__DEV_ERR, 
+                             "joystick", "%s", strerror(errno) );
+            somatic_d_die(&cx->d);
+        }
+    }
+    somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__NOTICE,
+                     SOMATIC__EVENT__CODES__PROC_STOPPING, 
+                     NULL, NULL );
+
+}
+
 /* ---- */
 /* MAIN */
 /* ---- */
@@ -233,7 +251,7 @@ int main( int argc, char **argv ) {
 
     // default options
     cx.opt_chan_name = "joystick";
-    cx.d_opts.ident = "joystick";
+    cx.d_opts.ident = "jachd";
     cx.opt_jsdev = 0;
     cx.opt_verbosity = 0;
     cx.opt_axis_cnt = 6;
@@ -247,7 +265,13 @@ int main( int argc, char **argv ) {
 
     // Open joystick device
     js_t *js = js_open( cx.opt_jsdev );
-    somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
+    if( !somatic_d_check( &cx.d, SOMATIC__EVENT__PRIORITIES__EMERG,
+                          SOMATIC__EVENT__CODES__DEV_ERR, 
+                          NULL != js,
+                          "joytick", "%s", strerror(errno) ) ) {
+        somatic_d_die(&cx.d);
+    }
+        
 
     // open channel
     somatic_d_channel_open( &cx.d, &cx.chan, 
@@ -265,7 +289,7 @@ int main( int argc, char **argv ) {
         fprintf(stderr,"-------\n");
    }
 
-    // This gives read an EINTR when the timer expires,
+    // This gives read() an EINTR when the timer expires,
     // so we can republish the message instead of blocking on the joystick read.
     // Note that blocks on ach channels take an expiration time directly, so
     // no timer would be needed for waits there.
@@ -273,13 +297,8 @@ int main( int argc, char **argv ) {
         syslog(LOG_WARNING, "Couldn't create timer, jachd will block: %s", strerror(errno));
     }
 
-    while (!somatic_sig_received) {
-        int status = jach_read_to_msg( msg, js );
-        if( !status || (EINTR == errno) ) {
-            somatic_metadata_set_time_timespec( msg->meta, aa_tm_now() );
-            SOMATIC_PACK_SEND( &cx.chan, somatic__joystick, msg );
-        }// else check status, errno or something
-    }
+    // run
+    jach_run( &cx, msg, js);
 
     // Cleanup:
     somatic_joystick_free(msg);
