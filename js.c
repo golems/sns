@@ -63,10 +63,10 @@ static js_t *js_alloc() {
     return js;
 }
 
-js_t *js_open(uint8_t index) {
+js_t *js_open(uint8_t idx) {
     char js_name[64];
 
-    snprintf(js_name, 63, JOYSTICK_FORMAT, index);
+    snprintf(js_name, 63, JOYSTICK_FORMAT, idx);
     js_name[63] = '\0'; // Never useful, but we're careful folk around here
 
     js_t *js = js_alloc();
@@ -100,8 +100,8 @@ js_t *js_open_first() {
             break; // Could just be end of list, but if we get end of list
                    // without returning, that IS a failure
        
-        unsigned int index;
-        if (sscanf(input->d_name, JOYSTICK_DIR "/js%u", &index) > 0) {
+        unsigned int idx;
+        if (sscanf(input->d_name, JOYSTICK_DIR "/js%u", &idx) > 0) {
             // Match
             js = js_alloc();
             if (js == NULL)
@@ -123,7 +123,8 @@ js_event_t *js_poll_event(js_t *js) {
     static js_event_t event;
     assert(js != NULL);
 
-    int len = read(js->fd, &event, sizeof(event));
+    ssize_t len = read(js->fd, &event, sizeof(event));
+    // I hope linux doesn't give us half the struct on EINTR, that would suck
     if (len < (int)sizeof(event))
         return NULL;    
 
@@ -144,7 +145,7 @@ int js_poll_state(js_t *js) {
                 js->state.axes[event->number] = (double)event->value / 32768.0;
                 break;
             case JS_EVENT_BUTTON:
-                js->state.buttons[event->number] = event->value;
+                js->state.buttons[event->number] = (uint8_t)event->value;
                 break;
             default:
                 break;

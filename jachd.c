@@ -35,7 +35,7 @@
  *
  */
 
-/** Author: jscholz
+/** Author: jscholz, Neil Dantam
  */
 
 #include <argp.h>
@@ -44,23 +44,33 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <syslog.h>
 
 #include <somatic.h>
+#include <somatic/daemon.h>
 #include <ach.h>
 
 #include <somatic/util.h>
 #include <somatic.h>
 
-#include "include/js.h"
-#include "include/jachd.h"
+#include "js.h"
+#include "jachd.h"
 
-/* Option Vars */
-static int opt_jsdev = 0;
-static int opt_verbosity = 0;
-static int opt_create = 0;
-static const char *opt_chan_name = JOYSTICK_CHANNEL_NAME;
-static int opt_axis_cnt = 6;
-static int opt_button_cnt = 10;
+
+
+typedef struct {
+    somatic_d_t d;
+    somatic_d_opts_t d_opts;
+    ach_channel_t chan;
+    timer_t timer;
+    const char *opt_chan_name;
+    uint8_t opt_jsdev;
+    int opt_verbosity;
+    size_t opt_axis_cnt;
+    size_t opt_button_cnt;
+    struct timespec opt_period; // provide message at least every period
+} cx_t;
+
 
 /* ---------- */
 /* ARGP Junk  */
@@ -95,11 +105,18 @@ static struct argp_option options[] = {
         .doc = "number of joystick axes (default to 6)"
     },
     {
-        .name = "Create",
-        .key = 'C',
+        .name = "daemonize",
+        .key = 'd',
         .arg = NULL,
         .flags = 0,
-        .doc = "Create channel with specified name (off by default)"
+        .doc = "fork off daemon process"
+    },
+    {
+        .name = "ident",
+        .key = 'I',
+        .arg = "IDENT",
+        .flags = 0,
+        .doc = "identifier for this daemon"
     },
     {
         .name = NULL,
@@ -124,23 +141,26 @@ static struct argp argp = {options, parse_opt, args_doc, doc, NULL, NULL, NULL }
 
 
 static int parse_opt( int key, char *arg, struct argp_state *state) {
-    (void) state; // ignore unused parameter
+    cx_t *cx = (cx_t*)state->input;
     switch(key) {
     case 'j':
-        opt_jsdev = atoi(arg);
+        cx->opt_jsdev = (uint8_t)atoi(arg);
         break;
     case 'v':
-        opt_verbosity++;
+        cx->opt_verbosity++;
         break;
     case 'c':
-        opt_chan_name = strdup( arg );
+        cx->opt_chan_name = strdup( arg );
         break;
     case 'a':
-        opt_axis_cnt = atoi(arg);
+        cx->opt_axis_cnt = (size_t)atoi(arg);
         break;
-    case 'C':
-    	opt_create = 1;
-    	break;
+    case 'I':
+        cx->d_opts.ident = strdup(arg);
+        break;
+    case 'd':
+        cx->d_opts.daemonize = 1;
+        break;
     case 0:
         break;
     }
@@ -154,59 +174,119 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
 /**
  * Block, waiting for a mouse event
  */
-void jach_read_to_msg(Somatic__Joystick *msg, js_t *js)
+int jach_read_to_msg( Somatic__Joystick *msg, js_t *js )
 {
     int status = js_poll_state( js );
-    somatic_hard_assert( status == 0, "Failed to poll joystick\n");
+    if( !status ) {
+        size_t i;
+        for( i = 0; i < msg->axes->n_data; i++ )
+            msg->axes->data[i] = js->state.axes[i];
+        
+        for( i = 0; i < msg->buttons->n_data; i++ )
+            msg->buttons->data[i] = (int64_t)js->state.buttons[i];
+    }
+    return status;
+}
 
-    int i;
-    for( i = 0; i < opt_axis_cnt; i++ )
-        msg->axes->data[i] = js->state.axes[i];
 
-    for( i = 0; i < opt_button_cnt; i++ )
-        msg->buttons->data[i] = (int64_t)js->state.buttons[i];
+
+static void timer_handler(int sig) {
+    // do nothing, the read will get EINTR
+    (void)sig;
+}
+
+static int create_timer(cx_t *cx) {
+    struct sigevent sev;
+    struct itimerspec its;
+    int r;
+    struct sigaction sa;
+    
+    // setup sighandler
+    memset(&sa,0,sizeof(sa));
+    sa.sa_handler = timer_handler;
+    sigemptyset(&sa.sa_mask);
+    if( 0 != (r = sigaction(SIGUSR1, &sa, NULL)) )
+        return r;
+
+    // create  timer
+    sev.sigev_notify = SIGEV_SIGNAL;
+    sev.sigev_signo = SIGUSR1;
+    sev.sigev_value.sival_ptr = &cx->timer;
+    if( 0 != (r = timer_create(CLOCK_MONOTONIC, &sev, &cx->timer)) )
+        return r; 
+
+    // start
+    its.it_value = cx->opt_period;
+    its.it_interval = cx->opt_period;
+    if( 0 != (r = timer_settime(&cx->timer, 0, &its, NULL)) )
+        return r;
+   
+    return 0;
 }
 
 /* ---- */
 /* MAIN */
 /* ---- */
 int main( int argc, char **argv ) {
+    static cx_t cx;
+    memset(&cx, 0, sizeof(cx));
 
-    argp_parse (&argp, argc, argv, 0, NULL, NULL);
+    // default options
+    cx.opt_chan_name = "joystick";
+    cx.d_opts.ident = "joystick";
+    cx.opt_jsdev = 0;
+    cx.opt_verbosity = 0;
+    cx.opt_axis_cnt = 6;
+    cx.opt_button_cnt = 10;
+    cx.opt_period = aa_tm_sec2timespec(1.0 / 30.0);
 
-    // install signal handler
-    somatic_sighandler_simple_install();
+    argp_parse (&argp, argc, argv, 0, NULL, &cx);
+
+    //initialize
+    somatic_d_init(&cx.d, &cx.d_opts);
 
     // Open joystick device
-    js_t *js = js_open( opt_jsdev );
+    js_t *js = js_open( cx.opt_jsdev );
     somatic_hard_assert( js != NULL, "Failed to open joystick device\n");
 
+    // open channel
+    somatic_d_channel_open( &cx.d, &cx.chan, 
+                            cx.opt_chan_name, NULL );
 
-    // Open the ach channel for joystick data
-    ach_channel_t chan;
-    int r = ach_open(&chan, opt_chan_name, NULL);
-    somatic_hard_assert( r == 0, "Failed to open channel %s\n", opt_chan_name);
+    Somatic__Joystick *msg = somatic_joystick_alloc(cx.opt_axis_cnt, cx.opt_button_cnt);
 
-    Somatic__Joystick *js_msg = somatic_joystick_alloc(opt_axis_cnt, opt_button_cnt);
-
-    if( opt_verbosity ) {
+    if( cx.opt_verbosity ) {
         fprintf(stderr, "\n* JSD *\n");
-        fprintf(stderr, "Verbosity:    %d\n", opt_verbosity);
-        fprintf(stderr, "jsdev:        %d\n", opt_jsdev);
-        fprintf(stderr, "channel:      %s\n", opt_chan_name);
-        fprintf(stderr, "message size: %d\n", somatic__joystick__get_packed_size(js_msg) );
+        fprintf(stderr, "Verbosity:    %d\n", cx.opt_verbosity);
+        fprintf(stderr, "jsdev:        %d\n", cx.opt_jsdev);
+        fprintf(stderr, "channel:      %s\n", cx.opt_chan_name);
+        fprintf(stderr, "period:       %fs\n", aa_tm_timespec2sec(cx.opt_period));
+        fprintf(stderr, "message size: %"PRIuPTR"\n", somatic__joystick__get_packed_size(msg) );
         fprintf(stderr,"-------\n");
+   }
+
+    // This gives read an EINTR when the timer expires,
+    // so we can republish the message instead of blocking on the joystick read.
+    // Note that blocks on ach channels take an expiration time directly, so
+    // no timer would be needed for waits there.
+    if( create_timer(&cx) ) {
+        syslog(LOG_WARNING, "Couldn't create timer, jachd will block: %s", strerror(errno));
     }
 
     while (!somatic_sig_received) {
-        jach_read_to_msg(js_msg, js);
-        r = SOMATIC_PACK_SEND( &chan, somatic__joystick, js_msg );
+        int status = jach_read_to_msg( msg, js );
+        if( !status || (EINTR == errno) ) {
+            somatic_metadata_set_time_timespec( msg->meta, aa_tm_now() );
+            SOMATIC_PACK_SEND( &cx.chan, somatic__joystick, msg );
+        }// else check status, errno or something
     }
 
     // Cleanup:
-    ach_close(&chan);
+    somatic_joystick_free(msg);
+    somatic_d_channel_close( &cx.d, &cx.chan );
+    somatic_d_destroy(&cx.d);
+
     js_close(js);
-    somatic_joystick_free(js_msg);
 
     return 0;
 }

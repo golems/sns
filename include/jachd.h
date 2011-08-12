@@ -9,14 +9,6 @@
 #define JACHD_H_
 
 
-#define JOYSTICK_CHANNEL_NAME "joystick-data"
-
-/**
- * Size for joystick channel when passing messages
- * from logitech gamepad (spacenav is smaller)
- */
-#define JOYSTICK_CHANNEL_SIZE 78
-
 #define SPACENAV_CHANNEL_NAME "spacenav-data"
 
 
