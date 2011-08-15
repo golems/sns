@@ -92,20 +92,7 @@ static struct argp_option options[] = {
         .flags = 0,
         .doc = "number of joystick axes (default to 6)"
     },
-    {
-        .name = "daemonize",
-        .key = 'd',
-        .arg = NULL,
-        .flags = 0,
-        .doc = "fork off daemon process"
-    },
-    {
-        .name = "ident",
-        .key = 'I',
-        .arg = "IDENT",
-        .flags = 0,
-        .doc = "identifier for this daemon"
-    },
+    SOMATIC_D_ARGP_OPTS,
     {
         .name = NULL,
         .key = 0,
@@ -143,15 +130,12 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
     case 'a':
         cx->opt_axis_cnt = (size_t)atoi(arg);
         break;
-    case 'I':
-        cx->d_opts.ident = strdup(arg);
-        break;
-    case 'd':
-        cx->d_opts.daemonize = 1;
-        break;
     case 0:
         break;
     }
+    
+    somatic_d_argp_parse( key, arg, &cx->d_opts );
+
     return 0;
 }
 
@@ -193,21 +177,27 @@ static int create_timer(cx_t *cx) {
     memset(&sa,0,sizeof(sa));
     sa.sa_handler = timer_handler;
     sigemptyset(&sa.sa_mask);
-    if( 0 != (r = sigaction(SIGUSR1, &sa, NULL)) )
+    if( 0 != (r = sigaction(SIGUSR1, &sa, NULL)) ) {
+        syslog(LOG_WARNING, "failed sigaction: %s", strerror(errno));
         return r;
+    }
 
     // create  timer
     sev.sigev_notify = SIGEV_SIGNAL;
     sev.sigev_signo = SIGUSR1;
     sev.sigev_value.sival_ptr = &cx->timer;
-    if( 0 != (r = timer_create(CLOCK_MONOTONIC, &sev, &cx->timer)) )
+    if( 0 != (r = timer_create(CLOCK_MONOTONIC, &sev, &cx->timer)) ) {
+        syslog(LOG_WARNING, "failed timer_create: %s", strerror(errno));
         return r; 
+    }
 
     // start
     its.it_value = cx->opt_period;
     its.it_interval = cx->opt_period;
-    if( 0 != (r = timer_settime(&cx->timer, 0, &its, NULL)) )
+    if( 0 != (r = timer_settime(cx->timer, 0, &its, NULL)) ) {
+        syslog(LOG_WARNING, "failed timer_settime: %s", strerror(errno));
         return r;
+    }
    
     return 0;
 }
@@ -221,7 +211,8 @@ static void jach_run( cx_t *cx, Somatic__Joystick *msg, js_t *js ) {
         int status = jach_read_to_msg( msg, js );
         if( !status || (EINTR == errno) ) {
             // ok, send the message
-            somatic_metadata_set_time_timespec( msg->meta, aa_tm_now() );
+            struct timespec now = aa_tm_now();
+            somatic_metadata_set_time_timespec( msg->meta, now );
             SOMATIC_D_PUT(somatic__joystick, &cx->d, &cx->chan, msg );
         } else if( EAGAIN  == errno ) {
             // some system limit, try again
@@ -235,6 +226,7 @@ static void jach_run( cx_t *cx, Somatic__Joystick *msg, js_t *js ) {
                              "joystick", "%s", strerror(errno) );
             somatic_d_die(&cx->d);
         }
+        aa_region_release( &cx->d.memreg );
     }
     somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__NOTICE,
                      SOMATIC__EVENT__CODES__PROC_STOPPING, 
@@ -252,6 +244,7 @@ int main( int argc, char **argv ) {
     // default options
     cx.opt_chan_name = "joystick";
     cx.d_opts.ident = "jachd";
+    cx.d_opts.sched_rt = SOMATIC_D_SCHED_UI;
     cx.opt_jsdev = 0;
     cx.opt_verbosity = 0;
     cx.opt_axis_cnt = 6;
@@ -268,7 +261,7 @@ int main( int argc, char **argv ) {
     if( !somatic_d_check( &cx.d, SOMATIC__EVENT__PRIORITIES__EMERG,
                           SOMATIC__EVENT__CODES__DEV_ERR, 
                           NULL != js,
-                          "joytick", "%s", strerror(errno) ) ) {
+                          "joystick", "%s", strerror(errno) ) ) {
         somatic_d_die(&cx.d);
     }
         
