@@ -177,14 +177,14 @@ static int create_timer(cx_t *cx) {
     memset(&sa,0,sizeof(sa));
     sa.sa_handler = timer_handler;
     sigemptyset(&sa.sa_mask);
-    if( 0 != (r = sigaction(SIGUSR1, &sa, NULL)) ) {
+    if( 0 != (r = sigaction(SIGALRM, &sa, NULL)) ) {
         syslog(LOG_WARNING, "failed sigaction: %s", strerror(errno));
         return r;
     }
 
     // create  timer
     sev.sigev_notify = SIGEV_SIGNAL;
-    sev.sigev_signo = SIGUSR1;
+    sev.sigev_signo = SIGALRM;
     sev.sigev_value.sival_ptr = &cx->timer;
     if( 0 != (r = timer_create(CLOCK_MONOTONIC, &sev, &cx->timer)) ) {
         syslog(LOG_WARNING, "failed timer_create: %s", strerror(errno));
