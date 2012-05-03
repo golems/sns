@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4  -*- */
-/* ex: set shiftwidth=4 expandtab: */ 
+/* ex: set shiftwidth=4 expandtab: */
 /*
  * Copyright (c) 2010-2011, Georgia Tech Research Corporation
  * All rights reserved.
@@ -133,7 +133,7 @@ static int parse_opt( int key, char *arg, struct argp_state *state) {
     case 0:
         break;
     }
-    
+
     somatic_d_argp_parse( key, arg, &cx->d_opts );
 
     return 0;
@@ -153,7 +153,7 @@ static int jach_read_to_msg( Somatic__Joystick *msg, js_t *js )
         size_t i;
         for( i = 0; i < msg->axes->n_data; i++ )
             msg->axes->data[i] = js->state.axes[i];
-        
+
         for( i = 0; i < msg->buttons->n_data; i++ )
             msg->buttons->data[i] = (int64_t)js->state.buttons[i];
     }
@@ -172,7 +172,7 @@ static int create_timer(cx_t *cx) {
     struct itimerspec its;
     int r;
     struct sigaction sa;
-    
+
     // setup sighandler
     memset(&sa,0,sizeof(sa));
     sa.sa_handler = timer_handler;
@@ -188,7 +188,7 @@ static int create_timer(cx_t *cx) {
     sev.sigev_value.sival_ptr = &cx->timer;
     if( 0 != (r = timer_create(CLOCK_MONOTONIC, &sev, &cx->timer)) ) {
         syslog(LOG_WARNING, "failed timer_create: %s", strerror(errno));
-        return r; 
+        return r;
     }
 
     // start
@@ -198,13 +198,13 @@ static int create_timer(cx_t *cx) {
         syslog(LOG_WARNING, "failed timer_settime: %s", strerror(errno));
         return r;
     }
-   
+
     return 0;
 }
 
 static void jach_run( cx_t *cx, Somatic__Joystick *msg, js_t *js ) {
     somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__NOTICE,
-                     SOMATIC__EVENT__CODES__PROC_RUNNING, 
+                     SOMATIC__EVENT__CODES__PROC_RUNNING,
                      NULL, NULL );
     // main loop
     while (!somatic_sig_received) {
@@ -217,19 +217,19 @@ static void jach_run( cx_t *cx, Somatic__Joystick *msg, js_t *js ) {
         } else if( EAGAIN  == errno ) {
             // some system limit, try again
             somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__ERR,
-                             SOMATIC__EVENT__CODES__DEV_ERR, 
+                             SOMATIC__EVENT__CODES__DEV_ERR,
                              "joystick", "EAGAIN in system call");
         } else {
             // failed, give up
             somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__EMERG,
-                             SOMATIC__EVENT__CODES__DEV_ERR, 
+                             SOMATIC__EVENT__CODES__DEV_ERR,
                              "joystick", "%s", strerror(errno) );
             somatic_d_die(&cx->d);
         }
-        aa_region_release( &cx->d.memreg );
+        aa_mem_region_release( &cx->d.memreg );
     }
     somatic_d_event( &cx->d, SOMATIC__EVENT__PRIORITIES__NOTICE,
-                     SOMATIC__EVENT__CODES__PROC_STOPPING, 
+                     SOMATIC__EVENT__CODES__PROC_STOPPING,
                      NULL, NULL );
 
 }
@@ -259,15 +259,15 @@ int main( int argc, char **argv ) {
     // Open joystick device
     js_t *js = js_open( cx.opt_jsdev );
     if( !somatic_d_check( &cx.d, SOMATIC__EVENT__PRIORITIES__EMERG,
-                          SOMATIC__EVENT__CODES__DEV_ERR, 
+                          SOMATIC__EVENT__CODES__DEV_ERR,
                           NULL != js,
                           "joystick", "%s", strerror(errno) ) ) {
         somatic_d_die(&cx.d);
     }
-        
+
 
     // open channel
-    somatic_d_channel_open( &cx.d, &cx.chan, 
+    somatic_d_channel_open( &cx.d, &cx.chan,
                             cx.opt_chan_name, NULL );
 
     Somatic__Joystick *msg = somatic_joystick_alloc(cx.opt_axis_cnt, cx.opt_button_cnt);
@@ -302,5 +302,3 @@ int main( int argc, char **argv ) {
 
     return 0;
 }
-
-
