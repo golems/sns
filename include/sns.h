@@ -41,7 +41,14 @@
 #ifndef SNS_H
 #define SNS_H
 
+#define SNS_HOSTNAME_LEN 8
+typedef double sns_real_t;
+
 #include <stdint.h>
+#include <time.h>
+#include <ach.h>
+#include <amino.h>
 #include "sns/msg.h"
+#include "sns/daemon.h"
 
 #endif //SNS_H

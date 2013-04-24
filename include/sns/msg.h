@@ -41,32 +41,62 @@
 #ifndef SNS_MSG_H
 #define SNS_MSG_H
 
+/***********/
+/* HEADERS */
+/***********/
+
+typedef struct sns_msg_time {
+    uint64_t sec;
+    uint32_t nsec;
+} sns_msg_time_t;
+
+typedef struct sns_msg_header {
+    sns_msg_time_t abstime;
+    sns_msg_time_t until;
+    uint64_t from_pid;
+    uint8_t from_host[SNS_HOSTNAME_LEN];
+} sns_msg_header_t;
+
+/**********/
+/* MOTORS */
+/**********/
+
 enum sns_motor_mode {
     SNS_MOTOR_MODE_VEL = 0
 };
 
 struct sns_msg_motor_ref {
+    struct sns_msg_header header;
     enum sns_motor_mode mode;
     uint8_t n;
-    double u[1];
+    sns_real_t u[1];
 };
 
 struct sns_msg_motor_state {
+    struct sns_msg_header header;
     enum sns_motor_mode mode;
     uint32_t size;
     struct {
-        double pos;
-        double vel;
-        double cur;
+        sns_real_t pos;
+        sns_real_t vel;
+        sns_real_t cur;
     } X[1];
 };
 
+/************/
+/* JOYSTICK */
+/************/
 
 struct sns_msg_joystick {
+    struct sns_msg_header header;
     uint64_t buttons;
     uint32_t n;
-    double axis[1];
+    sns_real_t axis[1];
 };
+
+/*************************/
+/* CONVENIENCE FUNCTIONS */
+/*************************/
 
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( size_t n );
 void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg );
