@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+#define JS_AXIS_CNT    64
+#define JS_BUTTON_CNT  64
+
 /**
  * Event type tag for button press and release events
  */
@@ -43,8 +46,8 @@ typedef struct js_event js_event_t;
  * The state of an attached joystick, based on all events received to date
  */
 struct js_state {
-    uint8_t buttons[256]; ///< State of all joystick buttons (note: most joysticks have less than 256 buttons). Can be treated as booleans where True is pressed
-    double axes[256]; ///< Position of all joystick axes. These values are clamped between -1.0 and 1.0
+    uint8_t buttons[JS_BUTTON_CNT]; ///< State of all joystick buttons (note: most joysticks have less than 256 buttons). Can be treated as booleans where True is pressed
+    double axes[JS_AXIS_CNT]; ///< Position of all joystick axes. These values are clamped between -1.0 and 1.0
 };
 
 /**
