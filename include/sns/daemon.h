@@ -41,6 +41,11 @@
 #ifndef SNS_DAEMON_H
 #define SNS_DAEMON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 // Print every message with lower priority than SNS_LOG_LEVEL + verbosity setting
 #define SNS_LOG_LEVEL LOG_NOTICE
 
@@ -81,23 +86,23 @@ enum sns_prio {
 
     Call this function before doing anything else in your daemon.
  */
-AA_API void sns_start( void );
+void sns_start( void );
 
 /** Destroy somatic daemon context struct.
 
     Call this function before your daemon exists.
  */
-AA_API void sns_end( void );
+void sns_end( void );
 
 /** Terminates the process when things get really bad.*/
-AA_API void sns_die( int code, const char fmt[], ... )
+void sns_die( int code, const char fmt[], ... )
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)))
 #endif
     ;
 
 /** Publish an event message */
-AA_API void sns_event( int level, int code, const char fmt[], ... )
+void sns_event( int level, int code, const char fmt[], ... )
 #ifdef __GNUC__
     __attribute__((format(printf, 3, 4)))
 #endif
@@ -125,11 +130,11 @@ AA_API void sns_event( int level, int code, const char fmt[], ... )
 /********************/
 
 /** Opens a channel or dies if it can't */
-AA_API void sns_chan_open( ach_channel_t *chan, const char *name,
+void sns_chan_open( ach_channel_t *chan, const char *name,
                            ach_attr_t *attr );
 
 /** Closes a channel */
-AA_API void sns_chan_close( ach_channel_t *chan );
+void sns_chan_close( ach_channel_t *chan );
 
 
 /********************/
@@ -142,4 +147,13 @@ AA_API void sns_chan_close( ach_channel_t *chan );
     case 'q': sns_cx.verbosity--; break;
 
 
+#ifdef __cplusplus
+}
+#endif
+/* ex: set shiftwidth=4 tabstop=4 expandtab: */
+/* Local Variables:                          */
+/* mode: c                                   */
+/* c-basic-offset: 4                         */
+/* indent-tabs-mode:  nil                    */
+/* End:                                      */
 #endif //SNS_DAEMON_H

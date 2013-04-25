@@ -41,6 +41,10 @@
 #ifndef SNS_MSG_H
 #define SNS_MSG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***********/
 /* HEADERS */
 /***********/
@@ -109,4 +113,13 @@ void sns_msg_motor_ref_dump ( FILE*, struct sns_msg_motor_ref *msg );
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( FILE*, struct sns_msg_joystick *msg );
 
+#ifdef __cplusplus
+}
+#endif
+/* ex: set shiftwidth=4 tabstop=4 expandtab: */
+/* Local Variables:                          */
+/* mode: c                                   */
+/* c-basic-offset: 4                         */
+/* indent-tabs-mode:  nil                    */
+/* End:                                      */
 #endif //SNS_MSG_H
