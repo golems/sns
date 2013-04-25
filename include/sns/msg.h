@@ -93,6 +93,9 @@ struct sns_msg_joystick {
     uint32_t n;
     sns_real_t axis[1];
 };
+static inline size_t sns_msg_joystick_size ( const struct sns_msg_joystick *msg ) {
+    return sizeof(*msg) - sizeof(msg->axis[0]) + sizeof(msg->axis[0])*msg->n;
+}
 
 /*************************/
 /* CONVENIENCE FUNCTIONS */

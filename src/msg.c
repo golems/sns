@@ -62,7 +62,9 @@ void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg ) {
 
 // joystick
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
-    struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( sizeof(*msg) + n*sizeof(msg->axis[0]) );
+    size_t size = sns_msg_joystick_size( & (struct sns_msg_joystick){.n=n} );
+
+    struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( size );
     msg->n = n;
     return msg;
 }
