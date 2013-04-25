@@ -164,7 +164,7 @@ static int jach_read_to_msg( cx_t *cx )
         }
 
         if( SNS_LOG_PRIORITY( LOG_DEBUG ) && isatty(STDERR_FILENO) ) {
-            sns_msg_joystick_dump( cx->msg );
+            sns_msg_joystick_dump( stderr, cx->msg );
         }
     }
     return status;
@@ -220,6 +220,10 @@ static void jach_run( cx_t *cx ) {
             //struct timespec now = aa_tm_now();
             //somatic_metadata_set_time_timespec( msg->meta, now );
             //SOMATIC_D_PUT(somatic__joystick, &cx->d, &cx->chan, msg );
+            ach_status_t r = ach_put( &cx->chan, cx->msg,
+                                      sns_msg_joystick_size( cx->msg ) );
+            SNS_CHECK( ACH_OK == r, LOG_EMERG, 0,
+                       "Failed to put joystick message: %s", ach_result_to_string(r) );
         } else if( EAGAIN  == errno ) {
             // some system limit, try again
             sns_event( LOG_ERR, 0, "joystick EAGAIN" );
