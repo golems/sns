@@ -121,9 +121,11 @@ static void sns_vevent( int priority, int code,
     case LOG_WARNING:
         // print a backtrace to stderr if it's a tty
         if( isatty( STDERR_FILENO ) ) {
+            fprintf(stderr,"--------STACK TRACE--------\n");
             static void *buffer[SNS_BACKTRACE_LEN];
             int n = backtrace( buffer, SNS_BACKTRACE_LEN );
             backtrace_symbols_fd( buffer, n, STDERR_FILENO );
+            fprintf(stderr,"--------END STACK TRACE----\n");
         }
     }
 

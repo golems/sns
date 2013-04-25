@@ -101,10 +101,12 @@ static inline size_t sns_msg_joystick_size ( const struct sns_msg_joystick *msg 
 /* CONVENIENCE FUNCTIONS */
 /*************************/
 
+typedef void sns_msg_dump_fun( FILE *, void* );
+
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n );
-void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg );
+void sns_msg_motor_ref_dump ( FILE*, struct sns_msg_motor_ref *msg );
 
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
-void sns_msg_joystick_dump ( struct sns_msg_joystick *msg );
+void sns_msg_joystick_dump ( FILE*, struct sns_msg_joystick *msg );
 
 #endif //SNS_MSG_H

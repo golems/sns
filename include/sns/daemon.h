@@ -110,8 +110,8 @@ AA_API void sns_event( int level, int code, const char fmt[], ... )
 #define SNS_CHECK( test, priority, code, fmt, ... )                     \
     if( !(test) ) { sns_event( priority, code, fmt, __VA_ARGS__); }
 
-#define SNS_REQUIRE( test, fmt, ... )                   \
-    if( !(test) ) { sns_die( 0, fmt, __VA_ARGS__); }
+#define SNS_REQUIRE( test, ... )                \
+    if( !(test) ) { sns_die( 0, __VA_ARGS__); }
 
 
 #define SNS_LOG_PRIORITY( priority ) ((priority) <= SNS_LOG_LEVEL + sns_cx.verbosity)
@@ -135,7 +135,7 @@ AA_API void sns_chan_close( ach_channel_t *chan );
 /********************/
 /* Option Handling  */
 /********************/
-#define SNS_OPTSTRING "v:q:"
+#define SNS_OPTSTRING "vq"
 
 #define SNS_OPTCASES                     \
     case 'v': sns_cx.verbosity++; break; \

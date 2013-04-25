@@ -39,40 +39,8 @@
  */
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
 #include "sns.h"
 
-// motor ref
-struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
-    struct sns_msg_motor_ref *msg =
-        (struct sns_msg_motor_ref*)malloc( sizeof(*msg) + n*sizeof(msg->u[0]) );
-    msg->n = n;
-    return msg;
-}
-
-void sns_msg_motor_ref_dump ( FILE *out, struct sns_msg_motor_ref *msg ) {
-    fprintf( out, "msg:" );
-    for( uint32_t i = 0; i < msg->n; i ++ ) {
-        fprintf(out, "\t%f", msg->u[i] );
-    }
-    fprintf( out, "\n" );
-}
-
-// joystick
-struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
-    size_t size = sns_msg_joystick_size( & (struct sns_msg_joystick){.n=n} );
-
-    struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( size );
-    msg->n = n;
-    return msg;
-}
-
-void sns_msg_joystick_dump ( FILE *out, struct sns_msg_joystick *msg ) {
-    fprintf( out, "msg: %08"PRIx64, msg->buttons );
-    for( uint32_t i = 0; i < msg->n; i ++ ) {
-        fprintf(out, "\t%f", msg->axis[i] );
-    }
-    fprintf( out, "\n" );
+void sns_msg_dump( FILE *out, void *msg ) {
+    sns_msg_joystick_dump( out, (struct sns_msg_joystick*) msg );
 }
