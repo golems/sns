@@ -47,6 +47,7 @@
 #include <syslog.h>
 #include <sns.h>
 #include <signal.h>
+#include <unistd.h>
 #include "js.h"
 
 
@@ -157,14 +158,14 @@ static int jach_read_to_msg( cx_t *cx )
             cx->msg->axis[i] = cx->js->state.axes[i];
         }
 
-        if( SNS_LOG_PRIORITY( LOG_DEBUG ) ) {
-            sns_msg_joystick_dump( cx->msg );
+        cx->msg->buttons = 0;
+        for( size_t i = 0; i < sizeof(cx->msg->buttons)*8 && i < JS_BUTTON_CNT; i++ ) {
+            cx->msg->buttons |= ( (uint64_t)(cx->js->state.buttons[i] ? 1 : 0) << i );
         }
 
-        cx->msg->buttons = 0;
-        //for( size_t i = 0; i < sizeof(msg->button)*8 && i < JS_BUTTON_CNT; i++ ) {
-            //msg->buttons->data[i] = (int64_t)js->state.buttons[i];
-        //}
+        if( SNS_LOG_PRIORITY( LOG_DEBUG ) && isatty(STDERR_FILENO) ) {
+            sns_msg_joystick_dump( cx->msg );
+        }
     }
     return status;
 }
