@@ -50,16 +50,23 @@ extern "C" {
 /***********/
 
 typedef struct sns_msg_time {
-    uint64_t sec;
+    int64_t sec;
+    int64_t dur_nsec;
     uint32_t nsec;
 } sns_msg_time_t;
 
+// express duration in nanoseconds
+
 typedef struct sns_msg_header {
-    sns_msg_time_t abstime;
-    sns_msg_time_t until;
+    sns_msg_time_t time;
     uint64_t from_pid;
+    uint64_t seq;
     uint8_t from_host[SNS_HOSTNAME_LEN];
 } sns_msg_header_t;
+
+_Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
+
+void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, uint64_t duration_ns );
 
 /**********/
 /* MOTORS */

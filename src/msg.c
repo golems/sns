@@ -44,6 +44,40 @@
 #include <inttypes.h>
 #include "sns.h"
 
+// Headers
+
+static int ensure_time( struct timespec *now, const struct timespec *arg ) {
+    if ( arg ) {
+        memcpy( now, arg, sizeof(now) );
+        return 0;
+    } else {
+        return clock_gettime( ACH_DEFAULT_CLOCK, now );
+    }
+}
+
+_Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now_arg ) {
+    // FIXME: does this work with negative values?
+    struct timespec now, then;
+    int r = ensure_time( &now, now_arg );
+    if( r ) return 0;
+
+    then.tv_sec = msg->time.sec + (msg->time.dur_nsec/1000000000);
+    then.tv_nsec = msg->time.nsec + (msg->time.dur_nsec % 1000000000);
+
+    return ( now.tv_sec > then.tv_sec ||
+             (now.tv_sec == then.tv_sec &&
+              now.tv_nsec > then.tv_nsec) );
+}
+
+void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, uint64_t dur_nsec ) {
+    struct timespec now;
+    ensure_time( &now, arg );
+    msg->time.sec = now.tv_sec;
+    msg->time.nsec = now.tv_nsec;
+    msg->time.dur_nsec = dur_nsec;
+}
+
+
 // motor ref
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
     struct sns_msg_motor_ref *msg =
