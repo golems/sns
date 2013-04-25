@@ -42,12 +42,19 @@
 #define SNS_H
 
 #define SNS_HOSTNAME_LEN 8
+
+#define SNS_BACKTRACE_LEN 32
+
 typedef double sns_real_t;
 
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <ach.h>
 #include <amino.h>
+
 #include "sns/msg.h"
 #include "sns/daemon.h"
 

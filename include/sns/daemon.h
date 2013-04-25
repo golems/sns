@@ -41,6 +41,9 @@
 #ifndef SNS_DAEMON_H
 #define SNS_DAEMON_H
 
+// Print every message with lower priority than SNS_LOG_LEVEL + verbosity setting
+#define SNS_LOG_LEVEL LOG_NOTICE
+
 typedef struct somatic_d_opts {
 
 } somatic_d_opts_t;
@@ -59,7 +62,11 @@ typedef struct sns_cx {
     FILE *lockfile;                  ///< lock file
     struct timespec time_monotonic;  ///< monotonic time
     struct timespec time_real;       ///< real time
+    sig_atomic_t shutdown;           ///< set to true when system should shutdown
+    int verbosity;                   ///< how much output to give.  Add SNS_LOG_LEVEL to get priority
 } sns_cx_t;
+
+extern struct sns_cx sns_cx;
 
 /** Priority for realtime proceses */
 enum sns_prio {
@@ -74,25 +81,65 @@ enum sns_prio {
 
     Call this function before doing anything else in your daemon.
  */
-AA_API void sns_start( sns_cx_t *cx );
+AA_API void sns_start( void );
 
 /** Destroy somatic daemon context struct.
 
     Call this function before your daemon exists.
  */
-AA_API void sns_end( sns_cx_t *cx );
+AA_API void sns_end( void );
 
 /** Terminates the process when things get really bad.*/
-AA_API void sns_die( sns_cx_t *cx);
+AA_API void sns_die( int code, const char fmt[], ... )
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)))
+#endif
+    ;
+
+/** Publish an event message */
+AA_API void sns_event( int level, int code, const char fmt[], ... )
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)))
+#endif
+    ;
+
+/* Macros for to check and require conditions.
+ * Other arguments are only evaluated if the test fails.
+ */
+
+#define SNS_CHECK( test, priority, code, fmt, ... )                     \
+    if( !(test) ) { sns_event( priority, code, fmt, __VA_ARGS__); }
+
+#define SNS_REQUIRE( test, fmt, ... )                   \
+    if( !(test) ) { sns_die( 0, fmt, __VA_ARGS__); }
+
+
+#define SNS_LOG_PRIORITY( priority ) ((priority) <= SNS_LOG_LEVEL + sns_cx.verbosity)
+
+#define SNS_LOG( priority, ... )                                        \
+    if( SNS_LOG_PRIORITY(priority) ) { sns_event( priority, 0,  __VA_ARGS__); }
+
+
+/********************/
+/* Channel Handlers */
+/********************/
 
 /** Opens a channel or dies if it can't */
-AA_API void sns_chan_open( sns_cx_t *d,
-                           ach_channel_t *chan, const char *name,
+AA_API void sns_chan_open( ach_channel_t *chan, const char *name,
                            ach_attr_t *attr );
 
 /** Closes a channel */
-AA_API void sns_chan_close( sns_cx_t *d, ach_channel_t *chan );
+AA_API void sns_chan_close( ach_channel_t *chan );
 
+
+/********************/
+/* Option Handling  */
+/********************/
+#define SNS_OPTSTRING "v:q:"
+
+#define SNS_OPTCASES                     \
+    case 'v': sns_cx.verbosity++; break; \
+    case 'q': sns_cx.verbosity--; break;
 
 
 #endif //SNS_DAEMON_H

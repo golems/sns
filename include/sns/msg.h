@@ -68,7 +68,7 @@ enum sns_motor_mode {
 struct sns_msg_motor_ref {
     struct sns_msg_header header;
     enum sns_motor_mode mode;
-    uint8_t n;
+    uint32_t n;
     sns_real_t u[1];
 };
 
@@ -98,10 +98,10 @@ struct sns_msg_joystick {
 /* CONVENIENCE FUNCTIONS */
 /*************************/
 
-struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( size_t n );
+struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n );
 void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg );
 
-struct sns_msg_motor_ref *sns_msg_joystick_alloc ( size_t n );
+struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( struct sns_msg_joystick *msg );
 
 #endif //SNS_MSG_H

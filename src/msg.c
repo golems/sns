@@ -45,9 +45,11 @@
 #include "sns.h"
 
 // motor ref
-struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( size_t n ) {
-    static const struct sns_msg_motor_ref *msg = NULL;
-    return (struct sns_msg_motor_ref*) malloc( sizeof(*msg) + n*sizeof(msg->u[0]) );
+struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
+    struct sns_msg_motor_ref *msg =
+        (struct sns_msg_motor_ref*)malloc( sizeof(*msg) + n*sizeof(msg->u[0]) );
+    msg->n = n;
+    return msg;
 }
 
 void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg ) {
@@ -59,9 +61,10 @@ void sns_msg_motor_ref_dump ( struct sns_msg_motor_ref *msg ) {
 }
 
 // joystick
-struct sns_msg_motor_ref *sns_msg_joystick_alloc ( size_t n ) {
-    static const struct sns_msg_joystick *msg = NULL;
-    return (struct sns_msg_motor_ref*) malloc( sizeof(*msg) + n*sizeof(msg->axis[0]) );
+struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
+    struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( sizeof(*msg) + n*sizeof(msg->axis[0]) );
+    msg->n = n;
+    return msg;
 }
 
 void sns_msg_joystick_dump ( struct sns_msg_joystick *msg ) {
