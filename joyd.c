@@ -48,18 +48,27 @@
 #include <sns.h>
 #include <signal.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include "js.h"
 
 
 // context struct
 typedef struct {
-    ach_channel_t chan;
-    timer_t timer;
+    // CLI options
     const char *opt_chan_name;
     uint8_t opt_jsdev;
-    size_t opt_axis_cnt;
+    uint32_t opt_axis_cnt;
     size_t opt_button_cnt;
     struct timespec opt_period; // provide message at least every period
+    unsigned opt_axis_num;
+    struct {
+        double initial;
+        double offset;
+        double scale;
+    } opt_axis[JS_AXIS_CNT];
+    // Running vars
+    ach_channel_t chan;
+    timer_t timer;
     js_t *js;
     struct sns_msg_joystick *msg;
 } cx_t;
@@ -84,6 +93,13 @@ static struct argp_option options[] = {
         .doc = "Causes verbose output"
     },
     {
+        .name = "quiet",
+        .key = 'q',
+        .arg = NULL,
+        .flags = 0,
+        .doc = "Less verbose output"
+    },
+    {
         .name = "channel",
         .key = 'c',
         .arg = "channel",
@@ -96,6 +112,20 @@ static struct argp_option options[] = {
         .arg = "axis-count",
         .flags = 0,
         .doc = "number of joystick axes (default to 6)"
+    },
+    {
+        .name = "axis",
+        .key = 'i',
+        .arg = "axis-number",
+        .flags = 0,
+        .doc = "an axis to set options for"
+    },
+    {
+        .name = "axis-initial",
+        .key = '0',
+        .arg = "initial-value",
+        .flags = 0,
+        .doc = "set initial value for an axis"
     },
     {
         .name = NULL,
@@ -119,20 +149,28 @@ static char doc[] = "reads from linux joystick and pushes out ach messages";
 static struct argp argp = {options, parse_opt, args_doc, doc, NULL, NULL, NULL };
 
 
-static int parse_opt( int key, char *arg, struct argp_state *state) {
+static int parse_opt( int key, char *optarg, struct argp_state *state) {
     cx_t *cx = (cx_t*)state->input;
     switch(key) {
+        SNS_OPTCASES
     case 'j':
-        cx->opt_jsdev = (uint8_t)atoi(arg);
-        break;
-    case 'v':
-        sns_cx.verbosity++;
+        cx->opt_jsdev = (uint8_t)atoi(optarg);
         break;
     case 'c':
-        cx->opt_chan_name = strdup( arg );
+        cx->opt_chan_name = strdup( optarg );
         break;
     case 'a':
-        cx->opt_axis_cnt = (size_t)atoi(arg);
+        cx->opt_axis_cnt = (uint32_t)atoi(optarg);
+        SNS_REQUIRE( cx->opt_axis_cnt <= JS_AXIS_CNT,
+                     "Max %d axes\n", JS_AXIS_CNT );
+        break;
+    case 'i':
+        cx->opt_axis_num = (uint32_t)atoi(optarg);
+        SNS_REQUIRE( cx->opt_axis_num <= JS_AXIS_CNT,
+                     "Max %d axes\n", JS_AXIS_CNT );
+        break;
+    case '0':
+        cx->opt_axis[cx->opt_axis_num].initial = atof(optarg);
         break;
     case 0:
         break;
@@ -155,7 +193,7 @@ static int jach_read_to_msg( cx_t *cx )
     int status = js_poll_state( cx->js );
     if( !status ) {
         for( size_t i = 0; i < cx->msg->n && i < JS_AXIS_CNT; i++ ) {
-            cx->msg->axis[i] = cx->js->state.axes[i];
+            cx->msg->axis[i] = (cx->js->state.axes[i]*cx->opt_axis[i].scale) + cx->opt_axis[i].offset;
         }
 
         cx->msg->buttons = 0;
@@ -239,6 +277,11 @@ static void jach_run( cx_t *cx ) {
 int main( int argc, char **argv ) {
     static cx_t cx;
     memset(&cx, 0, sizeof(cx));
+    for( size_t i = 0; i < JS_AXIS_CNT; i++ ) {
+        cx.opt_axis[i].offset = 0;
+        cx.opt_axis[i].scale = 1;
+        cx.opt_axis[i].initial = 0;
+    }
 
     // default options
     cx.opt_chan_name = "joystick";
@@ -251,15 +294,23 @@ int main( int argc, char **argv ) {
 
     argp_parse (&argp, argc, argv, 0, NULL, &cx);
 
+
+
+    //-- initialize --
+
     cx.msg = sns_msg_joystick_alloc( cx.opt_axis_cnt );
 
-    //initialize
     sns_start();
 
     // Open joystick device
     cx.js = js_open( cx.opt_jsdev );
     SNS_REQUIRE( NULL != cx.js,
                  "joystick: %s", strerror(errno) );
+
+    for( size_t i = 0; i < cx.opt_axis_cnt; i++ ) {
+        cx.msg->axis[i] = cx.opt_axis[i].initial;
+        cx.js->state.axes[i] = cx.opt_axis[i].initial;
+    }
 
     // open channel
     sns_chan_open( &cx.chan, cx.opt_chan_name, NULL );
@@ -270,6 +321,15 @@ int main( int argc, char **argv ) {
     SNS_LOG( LOG_DEBUG, "jsdev:        %d\n", cx.opt_jsdev);
     SNS_LOG( LOG_DEBUG, "js channel:      %s\n", cx.opt_chan_name);
     SNS_LOG( LOG_DEBUG, "js period:       %fs\n", aa_tm_timespec2sec(cx.opt_period));
+
+    if( SNS_LOG_PRIORITY( LOG_DEBUG ) ) {
+        for( size_t i = 0; i < cx.opt_axis_cnt; i++ ) {
+            SNS_LOG( LOG_DEBUG, "axis %"PRIuPTR": y0=%f, y=x*%f+%f\n",
+                     i, cx.opt_axis[i].initial,
+                     cx.opt_axis[i].scale,
+                     cx.opt_axis[i].offset );
+        }
+    }
     //fprintf(stderr, "message size: %"PRIuPTR"\n", somatic__joystick__get_packed_size(msg) );
 
     // This gives read() an EINTR when the timer expires,
