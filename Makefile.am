@@ -7,7 +7,10 @@ pkginclude_HEADERS =                              \
 	include/sns/daemon.h
 
 
-lib_LTLIBRARIES = libsns.la libsns_msg_joystick.la
+lib_LTLIBRARIES =                                 \
+	libsns.la                                 \
+	libsns_msg_joystick.la                    \
+	libsns_msg_motor_ref.la
 
 libsns_la_SOURCES = src/msg.c src/daemon.c
 libsns_la_LIBADD = -lach
@@ -15,6 +18,9 @@ libsns_la_LIBADD = -lach
 
 libsns_msg_joystick_la_SOURCES = src/msg/joystick.c
 libsns_msg_joystick_la_LIBADD = -lsns
+
+libsns_msg_motor_ref_la_SOURCES = src/msg/motor_ref.c
+libsns_msg_motor_ref_la_LIBADD = -lsns
 
 bin_PROGRAMS = snsdump
 

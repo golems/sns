@@ -82,6 +82,9 @@ struct sns_msg_motor_ref {
     uint32_t n;
     sns_real_t u[1];
 };
+static inline size_t sns_msg_motor_ref_size ( const struct sns_msg_motor_ref *msg ) {
+    return sizeof(*msg) - sizeof(msg->u[0]) + sizeof(msg->u[0])*msg->n;
+}
 
 struct sns_msg_motor_state {
     struct sns_msg_header header;
