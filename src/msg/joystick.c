@@ -41,6 +41,6 @@
 
 #include "sns.h"
 
-void sns_msg_dump( FILE *out, void *msg ) {
+void sns_msg_dump( FILE *out, const void *msg ) {
     sns_msg_joystick_dump( out, (struct sns_msg_joystick*) msg );
 }

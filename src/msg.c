@@ -86,7 +86,7 @@ struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
     return msg;
 }
 
-void sns_msg_motor_ref_dump ( FILE *out, struct sns_msg_motor_ref *msg ) {
+void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     fprintf( out, "[motor_ref]" );
     for( uint32_t i = 0; i < msg->n; i ++ ) {
         fprintf(out, "\t%f", msg->u[i] );
@@ -103,7 +103,7 @@ struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
     return msg;
 }
 
-void sns_msg_joystick_dump ( FILE *out, struct sns_msg_joystick *msg ) {
+void sns_msg_joystick_dump ( FILE *out, const struct sns_msg_joystick *msg ) {
     fprintf( out, "[joystick] 0x%08"PRIx64, msg->buttons );
     for( uint32_t i = 0; i < msg->n; i ++ ) {
         fprintf(out, "\t%f", msg->axis[i] );
