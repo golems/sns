@@ -44,11 +44,11 @@
 #include <inttypes.h>
 #include "sns.h"
 
-// Headers
+/*---- Headers ----*/
 
 static int ensure_time( struct timespec *now, const struct timespec *arg ) {
     if ( arg ) {
-        memcpy( now, arg, sizeof(now) );
+        memcpy( now, arg, sizeof(*now) );
         return 0;
     } else {
         return clock_gettime( ACH_DEFAULT_CLOCK, now );
@@ -69,16 +69,29 @@ _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespe
               now.tv_nsec > then.tv_nsec) );
 }
 
-void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, uint64_t dur_nsec ) {
+void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, int64_t dur_nsec ) {
     struct timespec now;
     ensure_time( &now, arg );
     msg->time.sec = now.tv_sec;
-    msg->time.nsec = now.tv_nsec;
+    msg->time.nsec = (uint32_t)now.tv_nsec;
     msg->time.dur_nsec = dur_nsec;
 }
 
 
-// motor ref
+static void dump_header( FILE *out, const struct sns_msg_header *msg, const char *type ) {
+    int64_t
+        h = msg->time.sec / (60*60),
+        m = msg->time.sec / 60 - h*60,
+        s = msg->time.sec % 60;
+
+    /* time: Thour:min:sec.nsec */
+    fprintf( out, "[%s] %09"PRIu64" T%03"PRId64":%02"PRId64":%02"PRId64".%09"PRIu32" + %08"PRId64"\n",
+             type, msg->seq, h, m, s, msg->time.nsec, msg->time.dur_nsec );
+
+}
+
+/*---- motor_ref ----*/
+
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
     struct sns_msg_motor_ref *msg =
         (struct sns_msg_motor_ref*)malloc( sizeof(*msg) + n*sizeof(msg->u[0]) );
@@ -87,14 +100,15 @@ struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
 }
 
 void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
-    fprintf( out, "[motor_ref]" );
+    dump_header( out, &msg->header, "motor_ref" );
     for( uint32_t i = 0; i < msg->n; i ++ ) {
         fprintf(out, "\t%f", msg->u[i] );
     }
     fprintf( out, "\n" );
 }
 
-// joystick
+/*---- joystick ----*/
+
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
     size_t size = sns_msg_joystick_size( & (struct sns_msg_joystick){.n=n} );
 
@@ -104,7 +118,8 @@ struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
 }
 
 void sns_msg_joystick_dump ( FILE *out, const struct sns_msg_joystick *msg ) {
-    fprintf( out, "[joystick] 0x%08"PRIx64, msg->buttons );
+    dump_header( out, &msg->header, "joystick" );
+    fprintf( out, "0x%08"PRIx64, msg->buttons );
     for( uint32_t i = 0; i < msg->n; i ++ ) {
         fprintf(out, "\t%f", msg->axis[i] );
     }

@@ -66,7 +66,7 @@ typedef struct sns_msg_header {
 
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
-void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, uint64_t duration_ns );
+void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
 
 /**********/
 /* MOTORS */
