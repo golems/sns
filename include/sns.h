@@ -55,6 +55,14 @@ typedef double sns_real_t;
 #include <ach.h>
 #include <amino.h>
 
+
+static inline struct timespec sns_time_add_ns( struct timespec ts, int64_t ns ) {
+    int64_t ns1 = ns + ts.tv_nsec;
+    struct timespec r = { .tv_nsec = ns1 % 1000000000,
+                          .tv_sec = ts.tv_sec + ns1 / 1000000000 };
+    return r;
+}
+
 #include "sns/msg.h"
 #include "sns/daemon.h"
 

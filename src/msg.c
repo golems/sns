@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <assert.h>
 #include "sns.h"
 
 /*---- Headers ----*/
@@ -57,12 +58,11 @@ static int ensure_time( struct timespec *now, const struct timespec *arg ) {
 
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now_arg ) {
     // FIXME: does this work with negative values?
-    struct timespec now, then;
+    struct timespec now;
     int r = ensure_time( &now, now_arg );
     if( r ) return 0;
 
-    then.tv_sec = msg->time.sec + (msg->time.dur_nsec/1000000000);
-    then.tv_nsec = msg->time.nsec + (msg->time.dur_nsec % 1000000000);
+    struct timespec then = sns_time_add_ns( now, msg->time.dur_nsec );
 
     return ( now.tv_sec > then.tv_sec ||
              (now.tv_sec == then.tv_sec &&
