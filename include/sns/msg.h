@@ -73,7 +73,10 @@ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, i
 /**********/
 
 enum sns_motor_mode {
-    SNS_MOTOR_MODE_VEL = 0
+    SNS_MOTOR_MODE_HALT = 1,
+    SNS_MOTOR_MODE_POS  = 2,
+    SNS_MOTOR_MODE_VEL  = 3,
+    SNS_MOTOR_MODE_TORQ = 4
 };
 
 struct sns_msg_motor_ref {
@@ -89,13 +92,17 @@ static inline size_t sns_msg_motor_ref_size ( const struct sns_msg_motor_ref *ms
 struct sns_msg_motor_state {
     struct sns_msg_header header;
     enum sns_motor_mode mode;
-    uint32_t size;
+    uint32_t n;
     struct {
         sns_real_t pos;
         sns_real_t vel;
-        sns_real_t cur;
+        //sns_real_t cur;
     } X[1];
 };
+
+static inline size_t sns_msg_motor_state_size ( const struct sns_msg_motor_state *msg ) {
+    return sizeof(*msg) - sizeof(msg->X[0]) + sizeof(msg->X[0])*msg->n;
+}
 
 /************/
 /* JOYSTICK */
@@ -119,6 +126,9 @@ typedef void sns_msg_dump_fun( FILE *, void* );
 
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n );
 void sns_msg_motor_ref_dump ( FILE*, const struct sns_msg_motor_ref *msg );
+
+struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n );
+void sns_msg_motor_state_dump ( FILE*, const struct sns_msg_motor_state *msg );
 
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( FILE*, const struct sns_msg_joystick *msg );

@@ -38,31 +38,9 @@
  *
  */
 
-#ifndef SNS_H
-#define SNS_H
 
-#define SNS_HOSTNAME_LEN 8
+#include "sns.h"
 
-#define SNS_BACKTRACE_LEN 32
-
-typedef double sns_real_t;
-
-#include <stdint.h>
-#include <time.h>
-#include <pthread.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <ach.h>
-#include <amino.h>
-
-static inline struct timespec sns_time_add_ns( struct timespec ts, int64_t ns ) {
-    int64_t ns1 = ns + ts.tv_nsec;
-    struct timespec r = { .tv_nsec = ns1 % 1000000000,
-                          .tv_sec = ts.tv_sec + ns1 / 1000000000 };
-    return r;
+void sns_msg_dump( FILE *out, const void *msg ) {
+    sns_msg_motor_state_dump( out, (struct sns_msg_motor_state*) msg );
 }
-
-#include "sns/msg.h"
-#include "sns/daemon.h"
-
-#endif //SNS_H

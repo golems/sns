@@ -10,7 +10,8 @@ pkginclude_HEADERS =                              \
 lib_LTLIBRARIES =                                 \
 	libsns.la                                 \
 	libsns_msg_joystick.la                    \
-	libsns_msg_motor_ref.la
+	libsns_msg_motor_ref.la                   \
+	libsns_msg_motor_state.la
 
 libsns_la_SOURCES = src/msg.c src/daemon.c
 libsns_la_LIBADD = -lach
@@ -21,6 +22,9 @@ libsns_msg_joystick_la_LIBADD = -lsns
 
 libsns_msg_motor_ref_la_SOURCES = src/msg/motor_ref.c
 libsns_msg_motor_ref_la_LIBADD = -lsns
+
+libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
+libsns_msg_motor_state_la_LIBADD = -lsns
 
 bin_PROGRAMS = snsdump
 

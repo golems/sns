@@ -91,10 +91,11 @@ static void dump_header( FILE *out, const struct sns_msg_header *msg, const char
 }
 
 /*---- motor_ref ----*/
-
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
+    size_t size = sns_msg_motor_ref_size( & (struct sns_msg_motor_ref){.n=n} );
     struct sns_msg_motor_ref *msg =
-        (struct sns_msg_motor_ref*)malloc( sizeof(*msg) + n*sizeof(msg->u[0]) );
+        (struct sns_msg_motor_ref*)malloc( size );
+    memset(msg,0,sizeof(*msg));
     msg->n = n;
     return msg;
 }
@@ -107,12 +108,32 @@ void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     fprintf( out, "\n" );
 }
 
+
+/*---- motor_state ----*/
+struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n ) {
+    size_t size = sns_msg_motor_state_size( & (struct sns_msg_motor_state){.n=n} );
+    struct sns_msg_motor_state *msg =
+        (struct sns_msg_motor_state*)malloc( size );
+    memset(msg,0,sizeof(*msg));
+    msg->n = n;
+    return msg;
+}
+void sns_msg_motor_state_dump ( FILE *out, const struct sns_msg_motor_state *msg ) {
+    dump_header( out, &msg->header, "motor_state" );
+    for( uint32_t i = 0; i < msg->n; i ++ ) {
+        fprintf(out, "\t(%f,%f) ",
+                msg->X[i].pos, msg->X[i].vel );
+    }
+    fprintf(out,"\n");
+
+}
+
 /*---- joystick ----*/
 
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
     size_t size = sns_msg_joystick_size( & (struct sns_msg_joystick){.n=n} );
-
     struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( size );
+    memset(msg,0,sizeof(*msg));
     msg->n = n;
     return msg;
 }
