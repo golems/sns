@@ -62,7 +62,9 @@ _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespe
     int r = ensure_time( &now, now_arg );
     if( r ) return 0;
 
-    struct timespec then = sns_time_add_ns( now, msg->time.dur_nsec );
+    struct timespec msg_time = {.tv_sec = msg->time.sec,
+                                .tv_nsec = msg->time.nsec};
+    struct timespec then = sns_time_add_ns( msg_time, msg->time.dur_nsec );
 
     return ( now.tv_sec > then.tv_sec ||
              (now.tv_sec == then.tv_sec &&
