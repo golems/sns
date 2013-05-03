@@ -85,8 +85,13 @@ struct sns_msg_motor_ref {
     uint32_t n;
     sns_real_t u[1];
 };
+
+static inline size_t sns_msg_motor_ref_size_n ( size_t n ) {
+    static const struct sns_msg_motor_ref *msg;
+    return sizeof(*msg) - sizeof(msg->u[0]) + sizeof(msg->u[0])*n;
+}
 static inline size_t sns_msg_motor_ref_size ( const struct sns_msg_motor_ref *msg ) {
-    return sizeof(*msg) - sizeof(msg->u[0]) + sizeof(msg->u[0])*msg->n;
+    return sns_msg_motor_ref_size_n(msg->n);
 }
 
 struct sns_msg_motor_state {
@@ -100,8 +105,12 @@ struct sns_msg_motor_state {
     } X[1];
 };
 
+static inline size_t sns_msg_motor_state_size_n ( size_t n ) {
+    static const struct sns_msg_motor_state *msg;
+    return sizeof(*msg) - sizeof(msg->X[0]) + sizeof(msg->X[0])*n;
+}
 static inline size_t sns_msg_motor_state_size ( const struct sns_msg_motor_state *msg ) {
-    return sizeof(*msg) - sizeof(msg->X[0]) + sizeof(msg->X[0])*msg->n;
+    return sns_msg_motor_state_size_n(msg->n);
 }
 
 /************/
@@ -114,8 +123,13 @@ struct sns_msg_joystick {
     uint32_t n;
     sns_real_t axis[1];
 };
+
+static inline size_t sns_msg_joystick_size_n ( size_t n ) {
+    static const struct sns_msg_joystick *msg;
+    return sizeof(*msg) - sizeof(msg->axis[0]) + sizeof(msg->axis[0])*n;
+}
 static inline size_t sns_msg_joystick_size ( const struct sns_msg_joystick *msg ) {
-    return sizeof(*msg) - sizeof(msg->axis[0]) + sizeof(msg->axis[0])*msg->n;
+    return sns_msg_joystick_size_n(msg->n);
 }
 
 /*************************/
