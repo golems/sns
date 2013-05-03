@@ -128,6 +128,20 @@ static struct argp_option options[] = {
         .doc = "set initial value for an axis"
     },
     {
+        .name = "scale",
+        .key = 's',
+        .arg = "factor",
+        .flags = 0,
+        .doc = "multiply axis by this value"
+    },
+    {
+        .name = "offset",
+        .key = 'o',
+        .arg = "increment",
+        .flags = 0,
+        .doc = "add this value to axis"
+    },
+    {
         .name = NULL,
         .key = 0,
         .arg = NULL,
@@ -171,6 +185,12 @@ static int parse_opt( int key, char *optarg, struct argp_state *state) {
         break;
     case '0':
         cx->opt_axis[cx->opt_axis_num].initial = atof(optarg);
+        break;
+    case 's':
+        cx->opt_axis[cx->opt_axis_num].scale = atof(optarg);
+        break;
+    case 'o':
+        cx->opt_axis[cx->opt_axis_num].offset = atof(optarg);
         break;
     case 0:
         break;
