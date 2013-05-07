@@ -66,94 +66,109 @@ typedef struct sns_msg_header {
 
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
-void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
+ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
 
-/**********/
-/* MOTORS */
-/**********/
+ /**********/
+ /* MOTORS */
+ /**********/
 
-enum sns_motor_mode {
-    SNS_MOTOR_MODE_HALT = 1,
-    SNS_MOTOR_MODE_POS  = 2,
-    SNS_MOTOR_MODE_VEL  = 3,
-    SNS_MOTOR_MODE_TORQ = 4
-};
+ enum sns_motor_mode {
+     SNS_MOTOR_MODE_HALT = 1,
+     SNS_MOTOR_MODE_POS  = 2,
+     SNS_MOTOR_MODE_VEL  = 3,
+     SNS_MOTOR_MODE_TORQ = 4
+ };
 
-struct sns_msg_motor_ref {
-    struct sns_msg_header header;
-    enum sns_motor_mode mode;
-    uint32_t n;
-    sns_real_t u[1];
-};
+ struct sns_msg_motor_ref {
+     struct sns_msg_header header;
+     enum sns_motor_mode mode;
+     uint32_t n;
+     sns_real_t u[1];
+ };
 
-static inline size_t sns_msg_motor_ref_size_n ( size_t n ) {
-    static const struct sns_msg_motor_ref *msg;
-    return sizeof(*msg) - sizeof(msg->u[0]) + sizeof(msg->u[0])*n;
-}
-static inline size_t sns_msg_motor_ref_size ( const struct sns_msg_motor_ref *msg ) {
-    return sns_msg_motor_ref_size_n(msg->n);
-}
+ static inline size_t sns_msg_motor_ref_size_n ( size_t n ) {
+     static const struct sns_msg_motor_ref *msg;
+     return sizeof(*msg) - sizeof(msg->u[0]) + sizeof(msg->u[0])*n;
+ }
+ static inline size_t sns_msg_motor_ref_size ( const struct sns_msg_motor_ref *msg ) {
+     return sns_msg_motor_ref_size_n(msg->n);
+ }
 
-struct sns_msg_motor_state {
-    struct sns_msg_header header;
-    enum sns_motor_mode mode;
-    uint32_t n;
-    struct {
-        sns_real_t pos;
-        sns_real_t vel;
-        //sns_real_t cur;
-    } X[1];
-};
+ struct sns_msg_motor_state {
+     struct sns_msg_header header;
+     enum sns_motor_mode mode;
+     uint32_t n;
+     struct {
+         sns_real_t pos;
+         sns_real_t vel;
+         //sns_real_t cur;
+     } X[1];
+ };
 
-static inline size_t sns_msg_motor_state_size_n ( size_t n ) {
-    static const struct sns_msg_motor_state *msg;
-    return sizeof(*msg) - sizeof(msg->X[0]) + sizeof(msg->X[0])*n;
-}
-static inline size_t sns_msg_motor_state_size ( const struct sns_msg_motor_state *msg ) {
-    return sns_msg_motor_state_size_n(msg->n);
-}
+ static inline size_t sns_msg_motor_state_size_n ( size_t n ) {
+     static const struct sns_msg_motor_state *msg;
+     return sizeof(*msg) - sizeof(msg->X[0]) + sizeof(msg->X[0])*n;
+ }
+ static inline size_t sns_msg_motor_state_size ( const struct sns_msg_motor_state *msg ) {
+     return sns_msg_motor_state_size_n(msg->n);
+ }
 
-/************/
-/* JOYSTICK */
-/************/
+ /************/
+ /* JOYSTICK */
+ /************/
 
-struct sns_msg_joystick {
-    struct sns_msg_header header;
-    uint64_t buttons;
-    uint32_t n;
-    sns_real_t axis[1];
-};
+ struct sns_msg_joystick {
+     struct sns_msg_header header;
+     uint64_t buttons;
+     uint32_t n;
+     sns_real_t axis[1];
+ };
 
-static inline size_t sns_msg_joystick_size_n ( size_t n ) {
-    static const struct sns_msg_joystick *msg;
-    return sizeof(*msg) - sizeof(msg->axis[0]) + sizeof(msg->axis[0])*n;
-}
-static inline size_t sns_msg_joystick_size ( const struct sns_msg_joystick *msg ) {
-    return sns_msg_joystick_size_n(msg->n);
-}
+ static inline size_t sns_msg_joystick_size_n ( size_t n ) {
+     static const struct sns_msg_joystick *msg;
+     return sizeof(*msg) - sizeof(msg->axis[0]) + sizeof(msg->axis[0])*n;
+ }
+ static inline size_t sns_msg_joystick_size ( const struct sns_msg_joystick *msg ) {
+     return sns_msg_joystick_size_n(msg->n);
+ }
 
-/*************************/
-/* CONVENIENCE FUNCTIONS */
-/*************************/
+ /*************************/
+ /* CONVENIENCE FUNCTIONS */
+ /*************************/
 
-typedef void sns_msg_dump_fun( FILE *, void* );
+ // read an ACH message into buffer from the thread-local memory region
+ enum ach_status
+ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
+                    size_t *frame_size,
+                    const struct timespec *ACH_RESTRICT abstime,
+                    int options );
+
 
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n );
 void sns_msg_motor_ref_dump ( FILE*, const struct sns_msg_motor_ref *msg );
+void sns_msg_motor_ref_plot_sample(
+    const struct sns_msg_motor_ref *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
 
 struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n );
 void sns_msg_motor_state_dump ( FILE*, const struct sns_msg_motor_state *msg );
 
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( FILE*, const struct sns_msg_joystick *msg );
+void sns_msg_joystick_plot_sample(
+    const struct sns_msg_joystick *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
 
 
 /***********/
 /* PLUGINS */
 /***********/
 
+typedef void sns_msg_dump_fun( FILE *, void* );
+typedef void sns_msg_plot_sample_fun( const void *, double **, char ***, size_t *) ;
+
 void *sns_msg_plugin_symbol( const char *type, const char *symbol );
 void sns_msg_dump( FILE *out, const void *msg ) ;
+void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) ;
+
 #ifdef __cplusplus
 }
 #endif

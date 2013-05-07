@@ -43,8 +43,28 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <time.h>
+#include <ach.h>
 #include <dlfcn.h>
 #include "sns.h"
+
+enum ach_status
+sns_msg_local_get( ach_channel_t *chan, void **pbuf, size_t *frame_size,
+                   const struct timespec *ACH_RESTRICT abstime,
+                   int options ) {
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+    ach_status_t r;
+    do {
+        size_t size = aa_mem_region_freesize(reg);
+        r = ach_get( chan, aa_mem_region_ptr(reg), size, frame_size, abstime, options );
+        if( ACH_OVERFLOW == r ) {
+            aa_mem_region_tmpalloc( reg, *frame_size );
+        }
+    } while (ACH_OVERFLOW == r );
+
+    *pbuf = aa_mem_region_alloc( reg, *frame_size );
+    return r;
+}
 
 
 void *sns_msg_plugin_symbol( const char *type, const char *symbol ) {
@@ -130,6 +150,27 @@ void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     fprintf( out, "\n" );
 }
 
+void sns_msg_motor_ref_plot_sample(
+    const struct sns_msg_motor_ref *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+            (*sample_ptr)[i] = msg->u[i];
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+        (*sample_labels)[i] = aa_mem_region_printf( reg, "%d", i );
+    }
+
+    if( sample_size )
+        *sample_size = msg->n;
+}
+
 
 /*---- motor_state ----*/
 struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n ) {
@@ -167,4 +208,25 @@ void sns_msg_joystick_dump ( FILE *out, const struct sns_msg_joystick *msg ) {
         fprintf(out, "\t%f", msg->axis[i] );
     }
     fprintf( out, "\n" );
+}
+
+void sns_msg_joystick_plot_sample(
+    const struct sns_msg_joystick *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+            (*sample_ptr)[i] = msg->axis[i];
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+        (*sample_labels)[i] = aa_mem_region_printf( reg, "%d", i );
+    }
+
+    if( sample_size )
+        *sample_size = msg->n;
 }

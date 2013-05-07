@@ -44,3 +44,7 @@
 void sns_msg_dump( FILE *out, const void *msg ) {
     sns_msg_motor_ref_dump( out, (struct sns_msg_motor_ref*) msg );
 }
+
+void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) {
+    sns_msg_motor_ref_plot_sample( (struct sns_msg_motor_ref*)msg, sample_ptr, sample_labels, sample_size );
+}

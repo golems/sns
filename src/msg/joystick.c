@@ -44,3 +44,7 @@
 void sns_msg_dump( FILE *out, const void *msg ) {
     sns_msg_joystick_dump( out, (struct sns_msg_joystick*) msg );
 }
+
+void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) {
+    sns_msg_joystick_plot_sample( (struct sns_msg_joystick*)msg, sample_ptr, sample_labels, sample_size );
+}

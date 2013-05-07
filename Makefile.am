@@ -14,7 +14,7 @@ lib_LTLIBRARIES =                                 \
 	libsns_msg_motor_state.la
 
 libsns_la_SOURCES = src/msg.c src/daemon.c
-libsns_la_LIBADD = -lach
+libsns_la_LIBADD = -lach -lamino -ldl
 
 
 libsns_msg_joystick_la_SOURCES = src/msg/joystick.c
@@ -26,8 +26,11 @@ libsns_msg_motor_ref_la_LIBADD = -lsns
 libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
 libsns_msg_motor_state_la_LIBADD = -lsns
 
-bin_PROGRAMS = snsdump
+bin_PROGRAMS = snsdump snsplot
 
 
 snsdump_SOURCES = src/snsdump.c
 snsdump_LDADD = libsns.la -lach -ldl
+
+snsplot_SOURCES = src/snsplot.c
+snsplot_LDADD = libsns.la -lach -ldl -lamino
