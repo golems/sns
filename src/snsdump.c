@@ -117,22 +117,8 @@ int main( int argc, char **argv ) {
     SNS_LOG( LOG_INFO, "type: %s\n", opt_type );
     SNS_LOG( LOG_INFO, "verbosity: %d\n", sns_cx.verbosity );
 
-    /*-- DLopen type handler -- */
-
-    void *dl_lib;
-    {
-        const char prefix[] = "libsns_msg_";
-        const char suffix[] = ".so";
-        char buf[ strlen(prefix) + strlen(suffix) + strlen(opt_type) + 1 ];
-        strcpy(buf,prefix);
-        strcat(buf,opt_type);
-        strcat(buf,suffix);
-        dl_lib = dlopen(buf, RTLD_NOW);
-        SNS_REQUIRE( dl_lib, "Couldn't open plugin '%s'\n", buf );
-    }
-
     /*-- Obtain Dump Function -- */
-    sns_msg_dump_fun *fun = (sns_msg_dump_fun*)dlsym( dl_lib, "sns_msg_dump" );
+    sns_msg_dump_fun *fun =  (sns_msg_dump_fun*) sns_msg_plugin_symbol( opt_type, "sns_msg_dump" );
     SNS_REQUIRE( fun, "Couldn't link dump function symbol'\n");
 
     /*-- Open channel -- */

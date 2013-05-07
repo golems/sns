@@ -43,7 +43,27 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <dlfcn.h>
 #include "sns.h"
+
+
+void *sns_msg_plugin_symbol( const char *type, const char *symbol ) {
+    void *dl_lib;
+    {
+        const char prefix[] = "libsns_msg_";
+        const char suffix[] = ".so";
+        char buf[ strlen(prefix) + strlen(suffix) + strlen(type) + 1 ];
+        strcpy(buf,prefix);
+        strcat(buf,type);
+        strcat(buf,suffix);
+        dl_lib = dlopen(buf, RTLD_NOW);
+        SNS_REQUIRE( dl_lib, "Couldn't open plugin '%s'\n", buf );
+    }
+
+    /*-- Obtain thing -- */
+    return dlsym( dl_lib, symbol );
+}
+
 
 /*---- Headers ----*/
 

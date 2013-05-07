@@ -147,6 +147,13 @@ void sns_msg_motor_state_dump ( FILE*, const struct sns_msg_motor_state *msg );
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( FILE*, const struct sns_msg_joystick *msg );
 
+
+/***********/
+/* PLUGINS */
+/***********/
+
+void *sns_msg_plugin_symbol( const char *type, const char *symbol );
+void sns_msg_dump( FILE *out, const void *msg ) ;
 #ifdef __cplusplus
 }
 #endif
