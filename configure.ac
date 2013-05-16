@@ -44,6 +44,7 @@ dnl AC_CHECK_DECLS([PRIuPTR,PRIu64,PRIx64])
 dnl AC_CHECK_FUNCS([ftruncate isascii memmove memset munmap socket strcasecmp strchr strdup strerror strtol])
 AC_SEARCH_LIBS([pthread_create],[pthread])
 AC_SEARCH_LIBS([clock_gettime],[rt])
+AC_SEARCH_LIBS([dlopen],[dl])
 
 
 # Enable maximum warnings

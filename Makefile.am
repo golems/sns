@@ -7,30 +7,29 @@ pkginclude_HEADERS =                              \
 	include/sns/daemon.h
 
 
-lib_LTLIBRARIES =                                 \
-	libsns.la                                 \
-	libsns_msg_joystick.la                    \
-	libsns_msg_motor_ref.la                   \
-	libsns_msg_motor_state.la
+lib_LTLIBRARIES = libsns.la
+lib_LTLIBRARIES += libsns_msg_joystick.la
+lib_LTLIBRARIES += libsns_msg_motor_ref.la
+lib_LTLIBRARIES += libsns_msg_motor_state.la
 
 libsns_la_SOURCES = src/msg.c src/daemon.c
-libsns_la_LIBADD = -lach -lamino -ldl
+libsns_la_LIBADD = -lach -ldl
 
 
 libsns_msg_joystick_la_SOURCES = src/msg/joystick.c
-libsns_msg_joystick_la_LIBADD = -lsns
+libsns_msg_joystick_la_LIBADD = libsns.la
 
 libsns_msg_motor_ref_la_SOURCES = src/msg/motor_ref.c
-libsns_msg_motor_ref_la_LIBADD = -lsns
+libsns_msg_motor_ref_la_LIBADD = libsns.la
 
 libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
-libsns_msg_motor_state_la_LIBADD = -lsns
+libsns_msg_motor_state_la_LIBADD = libsns.la
 
 bin_PROGRAMS = snsdump snsplot
 
 
 snsdump_SOURCES = src/snsdump.c
-snsdump_LDADD = libsns.la -lach -ldl
+snsdump_LDADD = libsns.la -lach -lamino
 
 snsplot_SOURCES = src/snsplot.c
-snsplot_LDADD = libsns.la -lach -ldl -lamino
+snsplot_LDADD = libsns.la -lach -lamino
