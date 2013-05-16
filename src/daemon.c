@@ -78,17 +78,23 @@ static ach_channel_t **cancel_chans = NULL;
 
 static void sighandler_cancel ( int sig ) {
     (void)sig;
+    if( SNS_LOG_PRIORITY(LOG_DEBUG) ) {
+        const char buf[] = "Received signal to cancel\n";
+        write(STDERR_FILENO, buf, sizeof(buf)); /* write is async safe, xprintf family is not */
+    }
     /* mark shutdown */
     sns_cx.shutdown = 1;
     /* cancel channel operations */
-    for( size_t i = 0; NULL != cancel_chans[i]; i ++ ) {
-        enum ach_status r = ach_cancel(cancel_chans[i], NULL);
-        if( ACH_OK != r ) {
-            static const char err[] = "Failure in sighandler_cancel\n";
-            write(STDERR_FILENO, err, sizeof(err) );
-            /* exit(EXIT_FAILURE); */
-            /* exit could deadlock */
-            /* hope we catch the shutdown somewhere */
+    if(cancel_chans) {
+        for( size_t i = 0; NULL != cancel_chans[i]; i ++ ) {
+            enum ach_status r = ach_cancel(cancel_chans[i], NULL);
+            if( ACH_OK != r ) {
+                static const char err[] = "Failure in sighandler_cancel\n";
+                write(STDERR_FILENO, err, sizeof(err) );
+                /* exit(EXIT_FAILURE); */
+                /* exit could deadlock */
+                /* hope we catch the shutdown somewhere */
+            }
         }
     }
 }
