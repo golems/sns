@@ -13,7 +13,7 @@ lib_LTLIBRARIES += libsns_msg_motor_ref.la
 lib_LTLIBRARIES += libsns_msg_motor_state.la
 
 libsns_la_SOURCES = src/msg.c src/daemon.c
-libsns_la_LIBADD = -lach -ldl
+libsns_la_LIBADD = -lach -ldl -lamino
 
 
 libsns_msg_joystick_la_SOURCES = src/msg/joystick.c

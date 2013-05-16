@@ -49,22 +49,12 @@ extern "C" {
 // Print every message with lower priority than SNS_LOG_LEVEL + verbosity setting
 #define SNS_LOG_LEVEL LOG_NOTICE
 
-typedef struct somatic_d_opts {
-
-} somatic_d_opts_t;
-
 typedef struct sns_cx {
     int is_initialized;              ///< is the struct initialized
-    ach_channel_t chan_debug;        ///< channel that gets debug events
-    ach_channel_t chan_heartbeat;    ///< channel that gets heartbeat events
     ach_channel_t chan_event;        ///< channel the gets other events
     pid_t pid;                       ///< pid of this process
-    char *ident;                     ///< identifier for this daemon
+    const char *ident;               ///< identifier for this daemon
     uint8_t host[SNS_HOSTNAME_LEN];  ///< hostname for this daemon
-    int state;                       ///< {starting,running,stopping,halted,err}
-    somatic_d_opts_t opts;           ///< options used for this daemon
-    int   lockfd;                    ///< lockfile fd
-    FILE *lockfile;                  ///< lock file
     struct timespec time_monotonic;  ///< monotonic time
     struct timespec time_real;       ///< real time
     sig_atomic_t shutdown;           ///< set to true when system should shutdown
@@ -82,10 +72,9 @@ enum sns_prio {
     SNS_PRIO_MAX         = 30  ///< highest realtime priority
 };
 
-/** Initialize somatic daemon context struct.
+void sns_init( void );
+void sns_set_ident( const char * );
 
-    Call this function before doing anything else in your daemon.
- */
 void sns_start( void );
 
 /** Destroy somatic daemon context struct.
@@ -93,6 +82,19 @@ void sns_start( void );
     Call this function before your daemon exists.
  */
 void sns_end( void );
+
+
+
+/* -- Signal Handling -- */
+/** When signal 'sig' is received, cancel waits on 'chan' */
+void sns_sigcancel( ach_channel_t **chan, const int sig[] );
+
+/* Signals which should terminate the process */
+extern int sns_sig_term_default[];
+
+/*********************/
+/* Events and errors */
+/*********************/
 
 /** Terminates the process when things get really bad.*/
 void sns_die( int code, const char fmt[], ... )
@@ -123,6 +125,8 @@ void sns_event( int level, int code, const char fmt[], ... )
 
 #define SNS_LOG( priority, ... )                                        \
     if( SNS_LOG_PRIORITY(priority) ) { sns_event( priority, 0,  __VA_ARGS__); }
+
+
 
 
 /********************/

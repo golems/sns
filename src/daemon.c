@@ -62,40 +62,134 @@
 
 struct sns_cx sns_cx = {0};
 
+void sns_set_ident( const char * ident) {
+    sns_cx.ident = ident;
+}
 
-static void sighandler (int sig, siginfo_t *siginfo, void *context)
-{
-    (void) context;
-    (void) siginfo;
-    SNS_LOG( LOG_DEBUG, "Received Signal: %d, Sending PID: %ld, UID: %ld\n",
-             sig, (long)siginfo->si_pid, (long)siginfo->si_uid);
+void sns_init( void ) {
+    sns_cx.is_initialized = 1;
+    if( NULL == sns_cx.ident ) sns_cx.ident = "sns";
+    sns_cx.pid = getpid();
+    sns_sigcancel( NULL, sns_sig_term_default );
+}
 
-    switch( sig) {
-    case SIGINT:
-    case SIGTERM:
-        sns_cx.shutdown = 1;
+
+static ach_channel_t **cancel_chans = NULL;
+
+static void sighandler_cancel ( int sig ) {
+    (void)sig;
+    /* mark shutdown */
+    sns_cx.shutdown = 1;
+    /* cancel channel operations */
+    for( size_t i = 0; NULL != cancel_chans[i]; i ++ ) {
+        enum ach_status r = ach_cancel(cancel_chans[i], NULL);
+        if( ACH_OK != r ) {
+            static const char err[] = "Failure in sighandler_cancel\n";
+            write(STDERR_FILENO, err, sizeof(err) );
+            /* exit(EXIT_FAILURE); */
+            /* exit could deadlock */
+            /* hope we catch the shutdown somewhere */
+        }
     }
 }
 
-void sns_start( ) {
-    // install signal handler
-    {
+void sns_sigcancel( ach_channel_t **chan, const int *sig ) {
+    /* register channel */
+    if(chan) {
+        size_t i;
+        for( i = 0; NULL != chan[i]; i ++ );
+        i++;
+        cancel_chans = (ach_channel_t**)realloc( cancel_chans, i * sizeof(cancel_chans[0]) );
+        memcpy( cancel_chans, chan, i*sizeof(chan[0]) );
+    }
+
+    /* setup signal handler */
+    for( size_t i = 0; sig[i]; i ++ ) {
         struct sigaction act;
         memset(&act, 0, sizeof(act));
-
-        act.sa_sigaction = &sighandler;
-
-        /* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field,
-           not sa_handler. */
-        act.sa_flags = SA_SIGINFO;
-
-        int r;
-        r = sigaction(SIGTERM, &act, NULL);
-        SNS_REQUIRE( 0 == r, "sigaction failed: %s", strerror(errno) );
-
-        r = sigaction(SIGINT, &act, NULL);
-        SNS_REQUIRE( 0 == r, "sigaction failed: %s", strerror(errno) );
+        act.sa_handler = &sighandler_cancel;
+        if( sigaction(sig[i], &act, NULL) ) {
+            sns_die( 0, "Could not install signal handler\n");
+        }
     }
+}
+
+int sns_sig_term_default[] = {
+    SIGHUP, SIGTERM, SIGINT, SIGUSR1, SIGUSR2,
+    0 };
+
+
+/* static void ach_sigdummy(int sig) { */
+/*     (void)sig; */
+/* } */
+
+
+/* static void sig_mask( const int *sig, sigset_t *mask ) { */
+/*     if( sigemptyset(mask) ) sns_die(0,"sigemptyset failed: %s\n", strerror(errno)); */
+/*     size_t i; */
+/*     for( i = 0; sig[i]; i ++ ) { */
+/*         if( sigaddset(mask, sig[i]) ) { */
+/*             sns_die(0, "sigaddset of %s (%d) failed: %s\n", */
+/*                     strsignal(sig[i]), sig[i], strerror(errno) ); */
+/*         } */
+/*     } */
+/* } */
+
+/* void sns_sigblock( const int *sig ) { */
+/*     /\* Block Signal *\/ */
+/*     { */
+/*         sigset_t blockmask; */
+/*         sig_mask( sig, &blockmask ); */
+/*         if( sigprocmask(SIG_BLOCK, &blockmask, NULL) ) { */
+/*             sns_die(0, "sigprocmask failed: %s\n", strerror(errno) ); */
+/*         } */
+/*     } */
+/*     /\* Install Dummy Handler *\/ */
+/*     size_t i; */
+/*     for( i = 0; sig[i]; i ++ ) { */
+/*         struct sigaction act; */
+/*         memset( &act, 0, sizeof(act) ); */
+/*         act.sa_handler = &ach_sigdummy; */
+/*         if (sigaction(sig[i], &act, NULL) < 0) { */
+/*             sns_die( 0, "Couldn't install signal handler: %s", strerror(errno) ); */
+/*         } */
+/*     } */
+/* } */
+
+
+/* static void sighandler (int sig, siginfo_t *siginfo, void *context) */
+/* { */
+/*     (void) context; */
+/*     (void) siginfo; */
+/*     SNS_LOG( LOG_DEBUG, "Received Signal: %d, Sending PID: %ld, UID: %ld\n", */
+/*              sig, (long)siginfo->si_pid, (long)siginfo->si_uid); */
+
+/*     switch( sig) { */
+/*     case SIGINT: */
+/*     case SIGTERM: */
+/*         sns_cx.shutdown = 1; */
+/*     } */
+/* } */
+
+void sns_start( ) {
+    /* // install signal handler */
+    /* { */
+    /*     struct sigaction act; */
+    /*     memset(&act, 0, sizeof(act)); */
+
+    /*     act.sa_sigaction = &sighandler; */
+
+    /*     /\* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, */
+    /*        not sa_handler. *\/ */
+    /*     act.sa_flags = SA_SIGINFO; */
+
+    /*     int r; */
+    /*     r = sigaction(SIGTERM, &act, NULL); */
+    /*     SNS_REQUIRE( 0 == r, "sigaction failed: %s", strerror(errno) ); */
+
+    /*     r = sigaction(SIGINT, &act, NULL); */
+    /*     SNS_REQUIRE( 0 == r, "sigaction failed: %s", strerror(errno) ); */
+    /* } */
 }
 
 /** Destroy somatic daemon context struct.

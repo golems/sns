@@ -68,6 +68,9 @@ static void posarg( char *arg, int i ) {
 
 int main( int argc, char **argv ) {
 
+    sns_set_ident("snsdump");
+    sns_init();
+
     /*-- Parse Args -- */
     int i = 0;
     for( int c; -1 != (c = getopt(argc, argv, "V?hH" SNS_OPTSTRING)); ) {
@@ -86,8 +89,8 @@ int main( int argc, char **argv ) {
         case '?':   /* help     */
         case 'h':
         case 'H':
-            puts( "Usage: canmat [OPTIONS...] COMMAND [command-args...]\n"
-                  "Shell tool for CANopen\n"
+            puts( "Usage: snsdump [OPTIONS] channel message-type\n"
+                  "Print SNS messages\n"
                   "\n"
                   "Options:\n"
                   "  -v,                          Make output more verbose\n"
@@ -113,6 +116,7 @@ int main( int argc, char **argv ) {
     SNS_REQUIRE( opt_channel, "snsdump: missing channel.\nTry `snsdump -H' for more information" );
     SNS_REQUIRE( opt_type, "snsdump: missing type.\nTry `snsdump -H' for more information" );
 
+
     SNS_LOG( LOG_INFO, "channel: %s\n", opt_channel );
     SNS_LOG( LOG_INFO, "type: %s\n", opt_type );
     SNS_LOG( LOG_INFO, "verbosity: %d\n", sns_cx.verbosity );
@@ -124,21 +128,18 @@ int main( int argc, char **argv ) {
     /*-- Open channel -- */
     ach_channel_t chan;
     sns_chan_open( &chan, opt_channel, NULL );
-
-
+    {
+        ach_channel_t *chans[] = {&chan, NULL};
+        sns_sigcancel( chans, sns_sig_term_default );
+    }
 
     /*-- Dump -- */
     sns_start();
-    while( ! sns_cx.shutdown ) {
-        // FIXME: handle more sizes
-        uint8_t buf[4096];
+    while(1) {
+        void *buf;
         size_t frame_size;
-        // compute timeout of 1 sec
-        struct timespec timeout;
-        clock_gettime( ACH_DEFAULT_CLOCK, &timeout );
-        timeout.tv_sec++;
         // get the frame
-        ach_status_t r = ach_get( &chan, buf, sizeof(buf), & frame_size, &timeout, ACH_O_WAIT );
+        ach_status_t r = sns_msg_local_get( &chan, &buf, &frame_size, NULL, ACH_O_WAIT );
         switch(r) {
         case ACH_MISSED_FRAME:
             SNS_LOG( LOG_WARNING, "Missed frame\n");
@@ -148,9 +149,13 @@ int main( int argc, char **argv ) {
         case ACH_TIMEOUT:
             SNS_LOG( LOG_DEBUG+1, "timeout\n");
             break;
+        case ACH_CANCELED:
+            SNS_LOG( LOG_DEBUG, "Cancel received\n");
+            exit(EXIT_SUCCESS);
         default:
             sns_die( 0, "ach_get failed: %s\n", ach_result_to_string(r) );
         }
+        aa_mem_region_local_release();
     }
 
     return 0;

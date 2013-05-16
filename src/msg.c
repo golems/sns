@@ -62,7 +62,8 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf, size_t *frame_size,
         }
     } while (ACH_OVERFLOW == r );
 
-    *pbuf = aa_mem_region_alloc( reg, *frame_size );
+    if( ACH_OK == r || ACH_MISSED_FRAME == r )
+        *pbuf = aa_mem_region_alloc( reg, *frame_size );
     return r;
 }
 
