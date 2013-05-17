@@ -317,10 +317,9 @@ int main( int argc, char **argv ) {
 
 
     //-- initialize --
+    sns_sigcancel( NULL, sns_sig_term_default );
 
     cx.msg = sns_msg_joystick_alloc( cx.opt_axis_cnt );
-
-    sns_start();
 
     // Open joystick device
     cx.js = js_open( cx.opt_jsdev );
@@ -361,6 +360,7 @@ int main( int argc, char **argv ) {
     }
 
     // run
+    sns_start();
     jach_run( &cx );
 
     // Cleanup:
