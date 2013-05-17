@@ -1,0 +1,76 @@
+#!/bin/sh -e
+### BEGIN INIT INFO
+# Provides:          sns
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Required-Start:    $local_fs
+# Required-Stop:     $local_fs
+# Short-Description: Create sns directories
+### END INIT INFO
+
+export SNS_RUNROOT=/var/run/sns
+
+start() {
+    mkdir -m 1777 $SNS_RUNDIR
+}
+
+stop() {
+    true
+}
+
+run() {
+    export SNS_IDENT=$1
+    export SNS_RUNDIR=$SNS_RUNROOT/$SNS_IDENT
+    if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
+    while test x"$1" != x--; do shift; done
+    shift
+    achcop -rd                     \
+        -P $SNS_RUNDIR/ppid        \
+        -p $SNS_RUNDIR/pid         \
+        -o $SNS_RUNDIR/out         \
+        -e $SNS_RUNDIR/out         \
+        -- $@
+}
+
+cmd_kill() {
+    ARGS=""
+    SNS_IDENT="."
+    while test -n "$1"; do
+        case "$1" in
+            -*) ARGS="$1 $ARGS"
+                ;;
+            *) SNS_IDENT="$1"
+                ;;
+        esac
+        shift
+    done
+    PID=`cat "$SNS_RUNROOT/$SNS_IDENT/pid"`
+    kill $ARGS $PID
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    run)
+        shift
+        run $@
+        ;;
+    kill)
+        shift
+        cmd_kill $@
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    force-reload)
+        stop
+        start
+        ;;
+    *)
+        exit 1;
+esac
