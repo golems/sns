@@ -11,11 +11,9 @@
 export SNS_RUNROOT=/var/run/sns
 
 start() {
-    mkdir -m 1777 $SNS_RUNDIR
-}
-
-stop() {
-    true
+    if test ! -d $SNS_RUNROOT; then
+        mkdir -m 1777 $SNS_RUNROOT
+    fi
 }
 
 run() {
@@ -77,8 +75,18 @@ cmd_kill() {
         esac
         shift
     done
-    PID=`cat "$SNS_RUNROOT/$SNS_IDENT/pid"`
+    PID=`cat "$SNS_RUNROOT/$SNS_IDENT/ppid"`
     kill $ARGS $PID
+}
+
+
+
+stop() {
+    for ident in `ls $SNS_RUNROOT`; do
+        if test -f $SNS_RUNROOT/$ident/ppid; then
+            cmd_kill $ident || echo "Couldn't kill $ident"
+        fi
+    done
 }
 
 case "$1" in
