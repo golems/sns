@@ -67,8 +67,6 @@ static void posarg( char *arg, int i ) {
 }
 
 int main( int argc, char **argv ) {
-
-    sns_set_ident("snsdump");
     sns_init();
 
     /*-- Parse Args -- */

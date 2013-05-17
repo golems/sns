@@ -19,12 +19,45 @@ stop() {
 }
 
 run() {
-    export SNS_IDENT=$1
-    export SNS_RUNDIR=$SNS_RUNROOT/$SNS_IDENT
     if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
-    while test x"$1" != x--; do shift; done
+    ARGS=""
+    SNS_IDENT=""
+    while test x"$1" != x--; do
+        case "$1" in
+            -d|-r|-rd|-dr)
+                ARGS="$1 $ARGS"
+                ;;
+            -*)
+                echo Invalid option: "$1"
+                exit 1
+                ;;
+            *)
+                if test -n "$SNS_IDENT"; then
+                    echo Invalid option: "$1"
+                    exit 1
+                else
+                    SNS_IDENT="$1"
+                fi
+                ;;
+        esac
+        shift
+    done
+
     shift
-    achcop -rd                     \
+
+    if test -z "$SNS_IDENT"; then
+        echo Need to provide identifier
+        exit 1
+    fi
+
+    if test -z "$1"; then
+        echo No program specified
+        exit 1
+    fi
+
+    export SNS_IDENT
+    export SNS_RUNDIR=$SNS_RUNROOT/$SNS_IDENT
+    exec achcop $ARGS              \
         -P $SNS_RUNDIR/ppid        \
         -p $SNS_RUNDIR/pid         \
         -o $SNS_RUNDIR/out         \

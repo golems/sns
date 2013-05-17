@@ -67,10 +67,28 @@ void sns_set_ident( const char * ident) {
 }
 
 void sns_init( void ) {
-    sns_cx.is_initialized = 1;
-    if( NULL == sns_cx.ident ) sns_cx.ident = "sns";
+    char *ptr = NULL;
+
+    /* pid */
     sns_cx.pid = getpid();
+
+    /* default signal handlers */
     sns_sigcancel( NULL, sns_sig_term_default );
+
+    /* Ident */
+    if( NULL != (ptr = getenv("SNS_IDENT")) ) {
+        sns_set_ident(ptr);
+    } else {
+        sns_set_ident("sns");
+    }
+    /* rundir */
+    if( NULL != (ptr = getenv("SNS_RUNDIR")) ) {
+        if( chdir(ptr) ) {
+            SNS_LOG(LOG_ERR, "Couldn't chdir: %s\n", strerror(errno));
+        }
+    }
+
+    sns_cx.is_initialized = 1;
 }
 
 
@@ -178,6 +196,12 @@ int sns_sig_term_default[] = {
 /* } */
 
 void sns_start( ) {
+
+    // tell achcop parent we're starting
+    if( getenv("ACHCOP") ) {
+        kill(getppid(), SIGUSR1);
+    }
+
     /* // install signal handler */
     /* { */
     /*     struct sigaction act; */
@@ -247,6 +271,11 @@ void sns_die( int code, const char fmt[], ... ) {
         va_start( ap, fmt );
         sns_vevent( LOG_EMERG, code, fmt, ap );
         va_end( ap );
+    }
+
+    // tell achcop parent we're broken
+    if( getenv("ACHCOP") ) {
+        kill(getppid(), SIGUSR2);
     }
 
     // quit

@@ -73,7 +73,6 @@ enum sns_prio {
 };
 
 void sns_init( void );
-void sns_set_ident( const char * );
 
 void sns_start( void );
 
