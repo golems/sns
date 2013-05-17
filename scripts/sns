@@ -89,6 +89,21 @@ stop() {
     done
 }
 
+cmd_ls() {
+    for ident in `ls $SNS_RUNROOT`; do
+        if test -d $SNS_RUNROOT/$ident; then
+            # check parent
+            SNS_PPID=`sns-trylock $SNS_RUNROOT/$ident/ppid || echo DEAD`
+            echo $ident parent $SNS_PPID
+
+            # check child
+            SNS_PID=`sns-trylock $SNS_RUNROOT/$ident/pid || echo DEAD`
+            echo $ident self $SNS_PID
+
+        fi
+    done
+}
+
 case "$1" in
     start)
         start
@@ -99,6 +114,9 @@ case "$1" in
     run)
         shift
         run $@
+        ;;
+    ls)
+        cmd_ls
         ;;
     kill)
         shift

@@ -25,7 +25,7 @@ libsns_msg_motor_ref_la_LIBADD = libsns.la
 libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
 libsns_msg_motor_state_la_LIBADD = libsns.la
 
-bin_PROGRAMS = snsdump snsplot
+bin_PROGRAMS = snsdump snsplot sns-trylock
 
 
 snsdump_SOURCES = src/snsdump.c
@@ -33,3 +33,5 @@ snsdump_LDADD = libsns.la -lach -lamino
 
 snsplot_SOURCES = src/snsplot.c
 snsplot_LDADD = libsns.la -lach -lamino
+
+sns_trylock_SOURCES = src/sns-trylock.c
