@@ -33,21 +33,6 @@
  *   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
  *   AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-        if (sigaction(SIGMSTART, &act, NULL) < 0) {
-            perror ("sigaction");
-            somatic_fail( "Couldn't install handler\n");
-        }
-
-        if (sigaction(SIGMSTOP, &act, NULL) < 0) {
-            perror ("sigaction");
-            somatic_fail( "Couldn't install handler\n");
-        }
-
-        if (sigaction(SIGMABORT, &act, NULL) < 0) {
-            perror ("sigaction");
-            somatic_fail( "Couldn't install handler\n");
-        }
-
  *   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *   POSSIBILITY OF SUCH DAMAGE.
  *
@@ -59,6 +44,7 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <signal.h>
+#include <sys/resource.h>
 
 struct sns_cx sns_cx = {0};
 
@@ -75,6 +61,9 @@ void sns_init( void ) {
     /* hostname */
     gethostname( sns_cx.host, SNS_HOSTNAME_LEN );
 
+    /* log channel */
+    sns_chan_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
+
     /* default signal handlers */
     sns_sigcancel( NULL, sns_sig_term_default );
 
@@ -84,14 +73,30 @@ void sns_init( void ) {
     } else {
         sns_set_ident("sns");
     }
-    /* rundir */
-    if( NULL != (ptr = getenv("SNS_RUNDIR")) ) {
+
+    /* cd to tmp dir */
+    /* This is where we may dump core */
+    if( NULL != (ptr = getenv("SNS_TMPDIR")) ) {
         if( chdir(ptr) ) {
             SNS_LOG(LOG_ERR, "Couldn't chdir: %s\n", strerror(errno));
         }
     }
-    /* log channel */
-    sns_chan_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
+
+    /* set limits */
+    {
+        struct rlimit lim;
+        /* get max core size */
+        if( getrlimit( RLIMIT_CORE, &lim ) ) {
+            SNS_LOG(LOG_ERR, "Couldn't get RLIMIT_CORE: %s", strerror(errno));
+        } else {
+            /* set core size */
+            lim.rlim_cur = (lim.rlim_max < SNS_DEFAULT_CORE_SIZE) ?
+                lim.rlim_max : SNS_DEFAULT_CORE_SIZE;
+            if( setrlimit( RLIMIT_CORE, &lim ) ) {
+                SNS_LOG(LOG_ERR, "Couldn't get RLIMIT_CORE: %s", strerror(errno));
+            }
+        }
+    }
 
     sns_cx.is_initialized = 1;
 }

@@ -51,15 +51,17 @@ extern "C" {
 
 #define SNS_LOG_CHANNEL "sns-log"
 
+#define SNS_DEFAULT_CORE_SIZE (100 * (1<<20))
+
 typedef struct sns_cx {
     int is_initialized;              ///< is the struct initialized
     ach_channel_t chan_log;          ///< channel the gets other events
     pid_t pid;                       ///< pid of this process
     const char *ident;               ///< identifier for this daemon
-    char host[SNS_HOSTNAME_LEN];  ///< hostname for this daemon
+    char host[SNS_HOSTNAME_LEN];      ///< hostname for this daemon
     struct timespec time_monotonic;  ///< monotonic time
     struct timespec time_real;       ///< real time
-    sig_atomic_t shutdown;           ///< set to true when system should shutdown
+    volatile sig_atomic_t shutdown;  ///< set to true when system should shutdown
     int verbosity;                   ///< how much output to give.  Add SNS_LOG_LEVEL to get priority
 } sns_cx_t;
 

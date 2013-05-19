@@ -9,6 +9,7 @@
 ### END INIT INFO
 
 export SNS_RUNROOT=/var/run/sns
+export SNS_TMPROOT=/var/tmp/sns
 
 run() {
     ARGS=""
@@ -48,13 +49,16 @@ run() {
 
     export SNS_IDENT
     export SNS_RUNDIR=$SNS_RUNROOT/$SNS_IDENT
+    export SNS_TMPDIR=$SNS_TMPROOT/$SNS_IDENT
+
     if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
+    if test ! -d $SNS_TMPDIR; then  mkdir $SNS_TMPDIR; fi
 
     exec achcop $ARGS              \
         -P $SNS_RUNDIR/ppid        \
         -p $SNS_RUNDIR/pid         \
-        -o $SNS_RUNDIR/out         \
-        -e $SNS_RUNDIR/out         \
+        -o $SNS_TMPDIR/out         \
+        -e $SNS_TMPDIR/out         \
         -- $@
 }
 
@@ -62,6 +66,9 @@ run() {
 start() {
     if test ! -d $SNS_RUNROOT; then
         mkdir -m 1777 $SNS_RUNROOT
+    fi
+    if test ! -d $SNS_TMPROOT; then
+        mkdir -m 1777 $SNS_TMPROOT
     fi
 
     run -dr snslogd -- snslogd
