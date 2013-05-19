@@ -96,6 +96,44 @@ static inline size_t sns_msg_log_size_n ( size_t n ) {
      return sns_msg_log_size_n(msg->n);
  }
 
+/**********/
+/* Vector */
+/**********/
+
+struct sns_msg_vector {
+    struct sns_msg_header header;
+    uint64_t n;
+    sns_real_t x[1];
+};
+
+static inline size_t sns_msg_vector_size_n ( size_t n ) {
+    static const struct sns_msg_vector *msg;
+    return sizeof(*msg) - sizeof(msg->x[0]) + sizeof(msg->x[0])*n;
+}
+static inline size_t sns_msg_vector_size ( const struct sns_msg_vector *msg ) {
+    return sns_msg_vector_size_n(msg->n);
+}
+
+
+/**********/
+/* Matrix */
+/**********/
+
+struct sns_msg_matrix {
+    struct sns_msg_header header;
+    uint64_t rows;
+    uint64_t cols;
+    sns_real_t x[1];
+};
+
+static inline size_t sns_msg_matrix_size_mn ( size_t rows, size_t cols ) {
+    static const struct sns_msg_matrix *msg;
+    return sizeof(*msg) - sizeof(msg->x[0]) + sizeof(msg->x[0])*rows*cols;
+}
+static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
+    return sns_msg_matrix_size_mn(msg->rows,msg->cols);
+}
+
  /**********/
  /* MOTORS */
  /**********/
