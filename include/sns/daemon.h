@@ -49,12 +49,14 @@ extern "C" {
 // Print every message with lower priority than SNS_LOG_LEVEL + verbosity setting
 #define SNS_LOG_LEVEL LOG_NOTICE
 
+#define SNS_LOG_CHANNEL "sns-log"
+
 typedef struct sns_cx {
     int is_initialized;              ///< is the struct initialized
-    ach_channel_t chan_event;        ///< channel the gets other events
+    ach_channel_t chan_log;          ///< channel the gets other events
     pid_t pid;                       ///< pid of this process
     const char *ident;               ///< identifier for this daemon
-    uint8_t host[SNS_HOSTNAME_LEN];  ///< hostname for this daemon
+    char host[SNS_HOSTNAME_LEN];  ///< hostname for this daemon
     struct timespec time_monotonic;  ///< monotonic time
     struct timespec time_real;       ///< real time
     sig_atomic_t shutdown;           ///< set to true when system should shutdown

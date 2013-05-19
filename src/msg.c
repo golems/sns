@@ -120,6 +120,12 @@ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, i
     msg->time.dur_nsec = dur_nsec;
 }
 
+void sns_msg_header_fill ( struct sns_msg_header *msg ) {
+    msg->from_pid = sns_cx.pid;
+    const char *host = sns_str_nullterm( sns_cx.host, SNS_HOSTNAME_LEN );
+    memcpy( msg->from_host, host, strlen(host) );
+}
+
 
 static void dump_header( FILE *out, const struct sns_msg_header *msg, const char *type ) {
     int64_t

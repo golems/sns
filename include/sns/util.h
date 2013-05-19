@@ -38,25 +38,46 @@
  *
  */
 
-#ifndef SNS_H
-#define SNS_H
+#ifndef SNS_UTIL_H
+#define SNS_UTIL_H
 
-#define SNS_HOSTNAME_LEN 8
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define SNS_BACKTRACE_LEN 32
+int sns_beep( int fd, double freq, double dur );
 
-typedef double sns_real_t;
 
-#include <stdint.h>
-#include <time.h>
-#include <pthread.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <ach.h>
-#include <amino.h>
+#define SNS_BEEP_NOTE_A3    220
+#define SNS_BEEP_NOTE_A4    440
+#define SNS_BEEP_NOTE_A4S   466.16
+#define SNS_BEEP_NOTE_B4    493.88
+#define SNS_BEEP_NOTE_C5    523.25
+#define SNS_BEEP_NOTE_C5S   554.37
 
-#include "sns/util.h"
-#include "sns/msg.h"
-#include "sns/daemon.h"
+#define SNS_BEEP_NOTE_A5    880
 
-#endif //SNS_H
+#define SNS_BEEP_NOTE_A6    1760
+
+#define SNS_BEEP_NOTE_A7    3520
+
+static inline struct timespec sns_time_add_ns( struct timespec ts, int64_t ns ) {
+    int64_t ns1 = ns + ts.tv_nsec;
+    struct timespec r = { .tv_nsec = ns1 % 1000000000,
+                          .tv_sec = ts.tv_sec + ns1 / 1000000000 };
+    return r;
+}
+
+const char *sns_str_nullterm( const char *text, size_t n );
+
+
+#ifdef __cplusplus
+}
+#endif
+/* ex: set shiftwidth=4 tabstop=4 expandtab: */
+/* Local Variables:                          */
+/* mode: c                                   */
+/* c-basic-offset: 4                         */
+/* indent-tabs-mode:  nil                    */
+/* End:                                      */
+#endif //SNS_UTIL_H

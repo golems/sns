@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+/* ex: set shiftwidth=4 tabstop=4 expandtab: */
 /*
  * Copyright (c) 2013, Georgia Tech Research Corporation
  * All rights reserved.
@@ -37,26 +39,36 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  *
  */
+/** Author: Neil Dantam
+ */
 
-#ifndef SNS_H
-#define SNS_H
+#include "sns.h"
+#include <linux/kd.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
-#define SNS_HOSTNAME_LEN 8
 
-#define SNS_BACKTRACE_LEN 32
+int sns_beep( int fd, double freq, double dur ) {
+    // PC mainboard timer 8254 is clocked at 1.19 MHz
+    static const double TICK_RATE =  1193180;
+    static const double COUNT_RATE = 1000; // seems to work
+    int tone = (int)(TICK_RATE / freq);
+    int durticks = (int)(dur * COUNT_RATE);
+    int argument = tone | (durticks << 16);
+    if( ioctl(fd, KDMKTONE, argument) ) {
+        perror("ioctl");
+    }
+    return 0;//return write(fd, "\a", 1);
+}
 
-typedef double sns_real_t;
-
-#include <stdint.h>
-#include <time.h>
-#include <pthread.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <ach.h>
-#include <amino.h>
-
-#include "sns/util.h"
-#include "sns/msg.h"
-#include "sns/daemon.h"
-
-#endif //SNS_H
+const char *sns_str_nullterm( const char *text, size_t n ) {
+    if( 0 == n ) return "";
+    else if( '\0' == text[n-1] ) {
+        return text;
+    } else {
+        char *copy = (char *)aa_mem_region_local_alloc(n+1);
+        memcpy(copy, text, n);
+        copy[n] = '\0';
+        return copy;
+    }
+}

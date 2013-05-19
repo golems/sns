@@ -49,4 +49,6 @@ Makefile.in
 /python/build/
 /snsdump
 /snsplot
+/snslog
+/snslogd
 /sns-trylock

@@ -72,6 +72,9 @@ void sns_init( void ) {
     /* pid */
     sns_cx.pid = getpid();
 
+    /* hostname */
+    gethostname( sns_cx.host, SNS_HOSTNAME_LEN );
+
     /* default signal handlers */
     sns_sigcancel( NULL, sns_sig_term_default );
 
@@ -87,6 +90,8 @@ void sns_init( void ) {
             SNS_LOG(LOG_ERR, "Couldn't chdir: %s\n", strerror(errno));
         }
     }
+    /* log channel */
+    sns_chan_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
 
     sns_cx.is_initialized = 1;
 }

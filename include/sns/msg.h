@@ -59,7 +59,7 @@ typedef struct sns_msg_time {
 
 typedef struct sns_msg_header {
     sns_msg_time_t time;
-    uint64_t from_pid;
+    int64_t from_pid;
     uint64_t seq;
     uint8_t from_host[SNS_HOSTNAME_LEN];
 } sns_msg_header_t;
@@ -67,6 +67,34 @@ typedef struct sns_msg_header {
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
  void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
+
+
+void sns_msg_header_fill ( struct sns_msg_header *msg );
+
+/* Return 0 is frame_size is too small */
+#define SNS_MSG_CHECK_SIZE( type, pointer, frame_size )         \
+    ( (frame_size) < sns_msg_ ## type ## _size_n(0) ||          \
+      (frame_size) < sns_msg_ ## type ## _size(pointer) )
+
+ /*******/
+ /* LOG */
+ /******/
+
+typedef struct sns_msg_log {
+    struct sns_msg_header header;
+    int priority;
+    size_t n;
+    char text[1];
+} sns_msg_log_t;
+
+static inline size_t sns_msg_log_size_n ( size_t n ) {
+     static const struct sns_msg_log *msg;
+     return sizeof(*msg) - sizeof(msg->text[0]) + sizeof(msg->text[0])*n;
+ }
+
+ static inline size_t sns_msg_log_size ( const struct sns_msg_log *msg ) {
+     return sns_msg_log_size_n(msg->n);
+ }
 
  /**********/
  /* MOTORS */

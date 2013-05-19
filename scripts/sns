@@ -10,14 +10,7 @@
 
 export SNS_RUNROOT=/var/run/sns
 
-start() {
-    if test ! -d $SNS_RUNROOT; then
-        mkdir -m 1777 $SNS_RUNROOT
-    fi
-}
-
 run() {
-    if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
     ARGS=""
     SNS_IDENT=""
     while test x"$1" != x--; do
@@ -55,6 +48,8 @@ run() {
 
     export SNS_IDENT
     export SNS_RUNDIR=$SNS_RUNROOT/$SNS_IDENT
+    if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
+
     exec achcop $ARGS              \
         -P $SNS_RUNDIR/ppid        \
         -p $SNS_RUNDIR/pid         \
@@ -62,6 +57,16 @@ run() {
         -e $SNS_RUNDIR/out         \
         -- $@
 }
+
+
+start() {
+    if test ! -d $SNS_RUNROOT; then
+        mkdir -m 1777 $SNS_RUNROOT
+    fi
+
+    run -dr snslogd -- snslogd
+}
+
 
 cmd_kill() {
     ARGS=""
