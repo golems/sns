@@ -37,6 +37,9 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 #include "sns.h"
 #include <execinfo.h>
@@ -52,6 +55,56 @@ void sns_set_ident( const char * ident) {
     sns_cx.ident = ident;
 }
 
+/* Redirection of stderr to sns log */
+#ifdef _GNU_SOURCE
+static ssize_t redir_write( void *cookie, const char *data, size_t n ) {
+    (void)cookie;
+    assert( 1 == sizeof(char) );
+    char buf[n+1];
+    memcpy(buf, data, n);
+    buf[n] = '\0';
+    SNS_LOG( LOG_ERR, "%s", buf );
+    return (ssize_t)n;
+}
+
+static ssize_t redir_read(void *c, char *buf, size_t size) {
+    (void)c; (void)buf; (void)size;
+    return 0;
+}
+static int redir_close(void *c ) {
+    (void)c; return 0;
+}
+
+static int redir_seek(void *c, off64_t *offset, int whence) {
+    (void)c; (void)offset; (void)whence;
+    return 0;
+}
+
+static cookie_io_functions_t redir_vtab = {
+    .read = &redir_read,
+    .write = &redir_write,
+    .seek = &redir_seek,
+    .close = &redir_close
+};
+
+static void redir_stderr (void) {
+    FILE *tmp = fopencookie( NULL, "w", redir_vtab );
+    if( NULL == tmp ) {
+        SNS_LOG( LOG_ERR, "Couldn't fopencookie for stderr\n" );
+        return;
+    }
+    if( setvbuf(tmp, NULL, _IONBF, 0) ) {
+        SNS_LOG( LOG_ERR, "Couldn't set buffering for cookie'ed stderr\n");
+        return;
+    }
+    fclose(stderr);
+    close(STDERR_FILENO);
+    stderr = tmp;
+}
+#endif /*_GNU_SOURCE */
+
+
+
 void sns_init( void ) {
     char *ptr = NULL;
 
@@ -63,6 +116,21 @@ void sns_init( void ) {
 
     /* log channel */
     sns_chan_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
+
+    /* Check where to send error messages */
+    if( isatty(STDERR_FILENO) ) {
+        sns_cx.stderr = stderr;
+    } else {
+        sns_cx.stderr = NULL;
+
+    /* Maybe redirect stderr to sns log */
+    /* If any libraries write to stderr now, we can capture their
+     * output in syslog.  This is easier to check than having
+     * separate output files for each process. */
+#ifdef _GNU_SOURCE
+    redir_stderr();
+#endif /*_GNU_SOURCE */
+    }
 
     /* default signal handlers */
     sns_sigcancel( NULL, sns_sig_term_default );
@@ -143,7 +211,7 @@ void sns_sigcancel( ach_channel_t **chan, const int *sig ) {
         memset(&act, 0, sizeof(act));
         act.sa_handler = &sighandler_cancel;
         if( sigaction(sig[i], &act, NULL) ) {
-            sns_die( 0, "Could not install signal handler\n");
+            SNS_DIE( "Could not install signal handler\n");
         }
     }
 }
@@ -241,54 +309,73 @@ void sns_end( ) {
 }
 
 
-static void sns_vevent( int priority, int code,
-                        const char fmt[], va_list ap ) {
-    (void) code;
-    vfprintf(stderr, fmt, ap );
 
-    // Maybe print a stack trace if something bad has happened
-    switch( priority ) {
-    case LOG_EMERG:
-    case LOG_ALERT:
-    case LOG_CRIT:
-    case LOG_ERR:
-    case LOG_WARNING:
-        // print a backtrace to stderr if it's a tty
-        if( isatty( STDERR_FILENO ) ) {
-            fprintf(stderr,"--------STACK TRACE--------\n");
+void sns_event( int level, int code, const char fmt[], ... ) {
+    (void) code;
+    /* maybe stderr */
+    if( sns_cx.stderr ) {
+        va_list ap;
+        va_start( ap, fmt );
+        vfprintf(sns_cx.stderr, fmt, ap );
+        va_end( ap );
+        /* Print a stack trace if something bad has happened */
+        switch( level ) {
+        case LOG_EMERG:
+        case LOG_ALERT:
+        case LOG_CRIT:
+        case LOG_ERR:
+        case LOG_WARNING:
+            // print a backtrace to stderr if it's a tty
+            fprintf(stderr,"\n--------STACK TRACE--------\n");
             static void *buffer[SNS_BACKTRACE_LEN];
             int n = backtrace( buffer, SNS_BACKTRACE_LEN );
             backtrace_symbols_fd( buffer, n, STDERR_FILENO );
-            fprintf(stderr,"--------END STACK TRACE----\n");
+            fprintf(stderr,"--------END STACK TRACE----\n\n");
         }
+        return;
     }
 
-}
+    /* else not stderr */
 
-
-void sns_event( int level, int code, const char fmt[], ... ) {
-    va_list ap;
-    va_start( ap, fmt );
-    sns_vevent( level, code, fmt, ap );
-    va_end( ap );
-}
-
-/** Terminates the process when things get really bad.*/
-void sns_die( int code, const char fmt[], ... ) {
-    // post event
+    int size;
+    /* get size */
     {
         va_list ap;
         va_start( ap, fmt );
-        sns_vevent( LOG_EMERG, code, fmt, ap );
+        size = vsnprintf( NULL, 0, fmt, ap );
         va_end( ap );
     }
 
-    // tell achcop parent we're broken
+    /* make message */
+    size_t n_str = (size_t)size + 1; /* size excludes null */
+    size_t n_msg = sns_msg_log_size_n(n_str);
+    sns_msg_log_t *msg  = (sns_msg_log_t*)alloca(n_msg);
+    msg->n = n_str;
+    msg->priority = level;
+    sns_msg_header_fill( &msg->header );
+    {
+        va_list ap;
+        va_start( ap, fmt );
+        size = vsnprintf( msg->text, msg->n, fmt, ap );
+        va_end( ap );
+    }
+
+    /* send message */
+    enum ach_status r = ach_put( &sns_cx.chan_log, msg, n_msg );
+    if( ACH_OK != r ) {
+        syslog(LOG_ALERT, "Could not put log message: %s\n", ach_result_to_string(r));
+        syslog( level, "%s", msg->text );
+    }
+}
+
+/** Terminates the process when things get really bad.*/
+void sns_die( ) {
+    /* tell achcop parent we're broken */
     if( getenv("ACHCOP") ) {
         kill(getppid(), SIGUSR2);
     }
 
-    // quit
+    /* quit */
     abort();
     exit(EXIT_FAILURE);
 }

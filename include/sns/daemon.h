@@ -63,6 +63,7 @@ typedef struct sns_cx {
     struct timespec time_real;       ///< real time
     volatile sig_atomic_t shutdown;  ///< set to true when system should shutdown
     int verbosity;                   ///< how much output to give.  Add SNS_LOG_LEVEL to get priority
+    FILE *stderr;
 } sns_cx_t;
 
 extern struct sns_cx sns_cx;
@@ -99,19 +100,17 @@ extern int sns_sig_term_default[];
 /* Events and errors */
 /*********************/
 
-/** Terminates the process when things get really bad.*/
-void sns_die( int code, const char fmt[], ... )
-#ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)))
-#endif
-    ;
-
 /** Publish an event message */
 void sns_event( int level, int code, const char fmt[], ... )
 #ifdef __GNUC__
     __attribute__((format(printf, 3, 4)))
 #endif
     ;
+
+/** Terminates the process when things get really bad.*/
+void sns_die( void );
+
+#define SNS_DIE( ... ) { sns_event( LOG_CRIT, 0, __VA_ARGS__ ); sns_die(); }
 
 /* Macros for to check and require conditions.
  * Other arguments are only evaluated if the test fails.
@@ -121,7 +120,7 @@ void sns_event( int level, int code, const char fmt[], ... )
     if( !(test) ) { sns_event( priority, code, fmt, __VA_ARGS__); }
 
 #define SNS_REQUIRE( test, ... )                \
-    if( !(test) ) { sns_die( 0, __VA_ARGS__); }
+    if( !(test) ) { SNS_DIE( __VA_ARGS__); }
 
 
 #define SNS_LOG_PRIORITY( priority ) ((priority) <= SNS_LOG_LEVEL + sns_cx.verbosity)

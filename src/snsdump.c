@@ -111,8 +111,8 @@ int main( int argc, char **argv ) {
         posarg(argv[optind++], i++);
     }
 
-    SNS_REQUIRE( opt_channel, "snsdump: missing channel.\nTry `snsdump -H' for more information" );
-    SNS_REQUIRE( opt_type, "snsdump: missing type.\nTry `snsdump -H' for more information" );
+    SNS_REQUIRE( opt_channel, "snsdump: missing channel.\nTry `snsdump -H' for more information\n" );
+    SNS_REQUIRE( opt_type, "snsdump: missing type.\nTry `snsdump -H' for more information\n" );
 
 
     SNS_LOG( LOG_INFO, "channel: %s\n", opt_channel );
@@ -151,7 +151,7 @@ int main( int argc, char **argv ) {
             SNS_LOG( LOG_DEBUG, "Cancel received\n");
             exit(EXIT_SUCCESS);
         default:
-            sns_die( 0, "ach_get failed: %s\n", ach_result_to_string(r) );
+            SNS_DIE(  "ach_get failed: %s\n", ach_result_to_string(r) );
         }
         aa_mem_region_local_release();
     }
