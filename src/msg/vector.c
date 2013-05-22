@@ -42,9 +42,9 @@
 #include "sns.h"
 
 void sns_msg_dump( FILE *out, const void *msg ) {
-    sns_msg_motor_state_dump( out, (struct sns_msg_motor_state*) msg );
+    sns_msg_vector_dump( out, (struct sns_msg_vector*) msg );
 }
 
 void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) {
-    sns_msg_motor_state_plot_sample( (struct sns_msg_motor_state*)msg, sample_ptr, sample_labels, sample_size );
+    sns_msg_vector_plot_sample( (struct sns_msg_vector*)msg, sample_ptr, sample_labels, sample_size );
 }

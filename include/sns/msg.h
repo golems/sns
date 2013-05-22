@@ -113,6 +113,9 @@ static inline size_t sns_msg_vector_size_n ( size_t n ) {
 static inline size_t sns_msg_vector_size ( const struct sns_msg_vector *msg ) {
     return sns_msg_vector_size_n(msg->n);
 }
+void sns_msg_vector_dump ( FILE*, const struct sns_msg_vector *msg );
+void sns_msg_vector_plot_sample(
+    const struct sns_msg_vector *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
 
 
 /**********/
@@ -198,6 +201,7 @@ static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
      return sns_msg_joystick_size_n(msg->n);
  }
 
+
  /*************************/
  /* CONVENIENCE FUNCTIONS */
  /*************************/
@@ -217,6 +221,8 @@ void sns_msg_motor_ref_plot_sample(
 
 struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n );
 void sns_msg_motor_state_dump ( FILE*, const struct sns_msg_motor_state *msg );
+void sns_msg_motor_state_plot_sample(
+    const struct sns_msg_motor_state *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
 
 struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n );
 void sns_msg_joystick_dump ( FILE*, const struct sns_msg_joystick *msg );

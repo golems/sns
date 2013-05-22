@@ -71,6 +71,8 @@ start() {
         mkdir -m 1777 $SNS_TMPROOT
     fi
 
+    ach mk sns-log
+
     run -dr snslogd -- snslogd
 }
 
@@ -99,6 +101,7 @@ stop() {
             cmd_kill $ident || echo "Couldn't kill $ident"
         fi
     done
+    ach rm sns-log
 }
 
 cmd_ls() {

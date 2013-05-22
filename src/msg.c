@@ -46,6 +46,7 @@
 #include <time.h>
 #include <ach.h>
 #include <dlfcn.h>
+#include <syslog.h>
 #include "sns.h"
 
 enum ach_status
@@ -139,6 +140,36 @@ static void dump_header( FILE *out, const struct sns_msg_header *msg, const char
 
 }
 
+/*---- vector ----*/
+void sns_msg_vector_plot_sample(
+    const struct sns_msg_vector *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+            (*sample_ptr)[i] = msg->x[i];
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n );
+        for( size_t i = 0; i < msg->n; i ++ )
+        (*sample_labels)[i] = aa_mem_region_printf( reg, "%d", i );
+    }
+
+    if( sample_size )
+        *sample_size = msg->n;
+}
+void sns_msg_vector_dump ( FILE *out, const struct sns_msg_vector *msg ) {
+    dump_header( out, &msg->header, "vector" );
+    for( uint32_t i = 0; i < msg->n; i ++ ) {
+        fprintf(out, "\t%f", msg->x[i] );
+    }
+    fprintf( out, "\n" );
+}
+
+
 /*---- motor_ref ----*/
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
     size_t size = sns_msg_motor_ref_size( & (struct sns_msg_motor_ref){.n=n} );
@@ -197,6 +228,32 @@ void sns_msg_motor_state_dump ( FILE *out, const struct sns_msg_motor_state *msg
     fprintf(out,"\n");
 
 }
+
+void sns_msg_motor_state_plot_sample(
+    const struct sns_msg_motor_state *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n * 2 );
+        for( size_t i = 0, j=0; i < msg->n; i ++ ) {
+            (*sample_ptr)[j++] = msg->X[i].pos;
+            (*sample_ptr)[j++] = msg->X[i].vel;
+        }
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n * 2 );
+        for( size_t i = 0, j = 0; i < msg->n; i ++ ) {
+            (*sample_labels)[j++] = aa_mem_region_printf( reg, "pos %d", i );
+            (*sample_labels)[j++] = aa_mem_region_printf( reg, "vel %d", i );
+        }
+    }
+
+    if( sample_size )
+        *sample_size = 2*msg->n;
+}
+
 
 /*---- joystick ----*/
 
