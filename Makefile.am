@@ -50,3 +50,7 @@ snslogd_LDADD = libsns.la -lach -lamino -lblas -llapack
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
 snslog_LDADD = libsns.la -lach -lamino -lblas -llapack
+
+bin_PROGRAMS += snsref
+snsref_SOURCES = src/snsref.c
+snsref_LDADD = libsns.la -lach -lamino -lblas -llapack
