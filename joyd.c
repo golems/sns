@@ -286,7 +286,7 @@ static void jach_run( cx_t *cx ) {
             // some system limit, try again
             sns_event( LOG_ERR, 0, "joystick EAGAIN" );
         } else {
-            sns_die( 0, "joystick failure: %s", strerror(errno) );
+            SNS_DIE( "joystick failure: %s", strerror(errno) );
         }
     }
 }
