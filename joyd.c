@@ -59,6 +59,7 @@ typedef struct {
     uint8_t opt_jsdev;
     uint32_t opt_axis_cnt;
     size_t opt_button_cnt;
+    double opt_deadzone;   // TODO: add CLI arg to set this
     struct timespec opt_period; // provide message at least every period
     unsigned opt_axis_num;
     struct {
@@ -213,7 +214,9 @@ static int jach_read_to_msg( cx_t *cx )
     int status = js_poll_state( cx->js );
     if( !status ) {
         for( size_t i = 0; i < cx->msg->n && i < JS_AXIS_CNT; i++ ) {
-            cx->msg->axis[i] = (cx->js->state.axes[i]*cx->opt_axis[i].scale) + cx->opt_axis[i].offset;
+            double x = aa_fdeadzone( cx->js->state.axes[i], -cx->opt_deadzone, cx->opt_deadzone, 0.0 );
+            //double x =  cx->js->state.axes[i];
+            cx->msg->axis[i] = (x*cx->opt_axis[i].scale) + cx->opt_axis[i].offset;
         }
 
         cx->msg->buttons = 0;
@@ -310,6 +313,7 @@ int main( int argc, char **argv ) {
     cx.opt_jsdev = 0;
     cx.opt_axis_cnt = 6;
     cx.opt_button_cnt = 10;
+    cx.opt_deadzone = 1e-4;
     cx.opt_period = aa_tm_sec2timespec(1.0 / 30.0);
 
     argp_parse (&argp, argc, argv, 0, NULL, &cx);
