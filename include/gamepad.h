@@ -69,6 +69,8 @@ enum gamepad_axis {
     GAMEPAD_AXIS_RX = 3,
     GAMEPAD_AXIS_RY = 4,
     GAMEPAD_AXIS_RT = 5,
+    GAMEPAD_AXIS_DX = 6,
+    GAMEPAD_AXIS_DY = 7,
 };
 
 #endif // GAMEPAD_H
