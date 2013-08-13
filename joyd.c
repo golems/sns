@@ -317,6 +317,7 @@ int main( int argc, char **argv ) {
 
 
     //-- initialize --
+    sns_init();
     sns_sigcancel( NULL, sns_sig_term_default );
 
     cx.msg = sns_msg_joystick_alloc( cx.opt_axis_cnt );
