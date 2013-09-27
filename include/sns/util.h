@@ -70,6 +70,9 @@ static inline struct timespec sns_time_add_ns( struct timespec ts, int64_t ns ) 
 
 const char *sns_str_nullterm( const char *text, size_t n );
 
+unsigned long sns_parse_uhex( const char *arg, uint64_t max );
+
+double sns_parse_float( const char *arg );
 
 #ifdef __cplusplus
 }

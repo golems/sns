@@ -347,7 +347,7 @@ void sns_event( int level, int code, const char fmt[], ... ) {
     }
 
     /* make message */
-    size_t n_str = (size_t)size + 1; /* size excludes null */
+    size_t n_str = (size_t)size + 1 + 1; /* size excludes null and maybe add trailing newline */
     size_t n_msg = sns_msg_log_size_n(n_str);
     sns_msg_log_t *msg  = (sns_msg_log_t*)alloca(n_msg);
     msg->n = n_str;
@@ -359,6 +359,10 @@ void sns_event( int level, int code, const char fmt[], ... ) {
         size = vsnprintf( msg->text, msg->n, fmt, ap );
         va_end( ap );
     }
+    if( '\n' != msg->text[size-1] ) {
+        msg->text[size] = '\n';
+        msg->text[size+1] = '\0';
+    }
 
     /* send message */
     enum ach_status r = ach_put( &sns_cx.chan_log, msg, n_msg );
@@ -366,6 +370,10 @@ void sns_event( int level, int code, const char fmt[], ... ) {
         syslog(LOG_ALERT, "Could not put log message: %s\n", ach_result_to_string(r));
         syslog( level, "%s", msg->text );
     }
+
+    /* if( isatty(STDERR_FILENO) ){ */
+    /*     fprintf( stderr, "%s", msg->text ); */
+    /* } */
 }
 
 /** Terminates the process when things get really bad.*/

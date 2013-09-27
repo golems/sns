@@ -72,3 +72,22 @@ const char *sns_str_nullterm( const char *text, size_t n ) {
         return copy;
     }
 }
+
+
+unsigned long sns_parse_uhex( const char *arg, uint64_t max ) {
+    char *endptr;
+    errno = 0;
+    unsigned long u  = strtoul( arg, &endptr, 16 );
+
+    SNS_REQUIRE( 0 == errno, "Invalid hexadecimal value: %s (%s)\n", arg, strerror(errno) );
+    SNS_REQUIRE( u <= max, "Argument %s too big\n", arg );
+
+    return u;
+}
+
+double sns_parse_float( const char *arg ) {
+    double x;
+    int r = sscanf(arg, "%lf", &x );
+    SNS_REQUIRE( 1 == r, "Couldn't parse floating point: %s\n", arg );
+    return x;
+}

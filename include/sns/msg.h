@@ -215,6 +215,10 @@ static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
 
 
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n );
+
+/** Allocate motor message of of local region */
+struct sns_msg_motor_ref *sns_msg_motor_ref_local_alloc ( uint32_t n );
+
 void sns_msg_motor_ref_dump ( FILE*, const struct sns_msg_motor_ref *msg );
 void sns_msg_motor_ref_plot_sample(
     const struct sns_msg_motor_ref *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );

@@ -71,9 +71,11 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?hH" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "V?hHpd" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
+        case 'p': opt_mode = SNS_MOTOR_MODE_POS; break;
+        case 'd': opt_mode = SNS_MOTOR_MODE_VEL; break;
         case 'V':   /* version     */
             puts( "snsref " PACKAGE_VERSION "\n"
                   "\n"
@@ -87,16 +89,15 @@ int main( int argc, char **argv ) {
         case '?':   /* help     */
         case 'h':
         case 'H':
-            puts( "Usage: snsdump [OPTIONS] channel x0 x1 ... xn\n"
+            puts( "Usage: snsref [OPTIONS] channel x0 x1 ... xn\n"
                   "Send a motor referece command\n"
                   "\n"
                   "Options:\n"
+                  "  -p                           Set positions (default)\n"
+                  "  -d                           Set velocies\n"
                   "  -v,                          Make output more verbose\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
-                  "\n"
-                  "Examples:\n"
-                  "  snsdump js_chan joystick     Dump 'joystick' messages from the 'js_chan' channel"
                   "\n"
                   "Report bugs to <ntd@gatech.edu>"
                 );
@@ -111,7 +112,7 @@ int main( int argc, char **argv ) {
         posarg(argv[optind++], i++);
     }
 
-    SNS_REQUIRE( opt_channel, "snsdump: missing channel.\nTry `snsdump -H' for more information\n" );
+    SNS_REQUIRE( opt_channel, "snsref: missing channel.\nTry `snsref -?' for more information\n" );
 
     /*-- Open channel -- */
     ach_channel_t chan;
@@ -126,9 +127,13 @@ int main( int argc, char **argv ) {
     msg->mode = opt_mode;
     msg->n = n_opt_u;
     memcpy( msg->u, opt_u, n_opt_u*sizeof(msg->u[0]) );
+    struct timespec now;
+    clock_gettime( ACH_DEFAULT_CLOCK, &now );
+    sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
+
 
     /*-- Send Message --*/
-    sns_msg_motor_ref_dump( stdout, msg );
+    if( SNS_LOG_PRIORITY(LOG_INFO) ) sns_msg_motor_ref_dump( stdout, msg );
     enum ach_status r = ach_put( &chan, msg, sns_msg_motor_ref_size(msg) );
     if( ACH_OK == r ) return 0;
     else {

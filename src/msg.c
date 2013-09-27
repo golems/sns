@@ -180,6 +180,15 @@ struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
     return msg;
 }
 
+struct sns_msg_motor_ref *sns_msg_motor_ref_local_alloc ( uint32_t n ) {
+    size_t size = sns_msg_motor_ref_size( & (struct sns_msg_motor_ref){.n=n} );
+    struct sns_msg_motor_ref *msg =
+        (struct sns_msg_motor_ref*)aa_mem_region_local_alloc( size );
+    memset(msg,0,sizeof(*msg));
+    msg->n = n;
+    return msg;
+}
+
 void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     dump_header( out, &msg->header, "motor_ref" );
     for( uint32_t i = 0; i < msg->n; i ++ ) {
