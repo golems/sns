@@ -71,7 +71,7 @@ start() {
         mkdir -m 1777 $SNS_TMPROOT
     fi
 
-    ach mk sns-log
+    ach mk -o 666 sns-log
 
     run -dr snslogd -- snslogd
 }
