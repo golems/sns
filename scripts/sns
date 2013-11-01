@@ -90,7 +90,9 @@ cmd_kill() {
         shift
     done
     PID=`cat "$SNS_RUNROOT/$SNS_IDENT/ppid"`
-    kill $ARGS $PID
+    if kill $ARGS $PID; then
+        echo signaled "\`$SNS_IDENT'"
+    fi
 }
 
 
