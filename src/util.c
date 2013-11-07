@@ -63,13 +63,14 @@ int sns_beep( int fd, double freq, double dur ) {
 
 const char *sns_str_nullterm( const char *text, size_t n ) {
     if( 0 == n ) return "";
-    else if( '\0' == text[n-1] ) {
-        return text;
-    } else {
+    size_t i = strnlen(text, n);
+    if( n == i ) {
         char *copy = (char *)aa_mem_region_local_alloc(n+1);
         memcpy(copy, text, n);
         copy[n] = '\0';
         return copy;
+    } else {
+        return text;
     }
 }
 

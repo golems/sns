@@ -42,6 +42,7 @@
 #define SNS_H
 
 #define SNS_HOSTNAME_LEN 8
+#define SNS_IDENT_LEN 8
 
 #define SNS_BACKTRACE_LEN 32
 

@@ -121,9 +121,10 @@ static void process( int fd_beep, sns_msg_log_t *msg, size_t frame_size ) {
     } /* else, log the message */
 
     /* Log it */
-    syslog( msg->priority, "[%"PRIu64"@%s] %s",
+    syslog( msg->priority, "[%s(%"PRIu64")@%s] %s",
+            sns_str_nullterm(msg->header.ident, sizeof(msg->header.from_host)),
             msg->header.from_pid,
-            sns_str_nullterm((char*)msg->header.from_host, sizeof(msg->header.from_host)),
+            sns_str_nullterm(msg->header.from_host, sizeof(msg->header.from_host)),
             sns_str_nullterm(msg->text, msg->n) );
     beep(fd_beep, msg->priority);
 }

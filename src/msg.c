@@ -123,8 +123,16 @@ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, i
 
 void sns_msg_header_fill ( struct sns_msg_header *msg ) {
     msg->from_pid = sns_cx.pid;
-    const char *host = sns_str_nullterm( sns_cx.host, SNS_HOSTNAME_LEN );
-    memcpy( msg->from_host, host, strlen(host) );
+
+    assert( sizeof(msg->from_host) >= SNS_HOSTNAME_LEN ) ;
+    assert( sizeof(sns_cx.host) >= SNS_HOSTNAME_LEN ) ;
+    assert( sizeof(char) == sizeof(uint8_t) );
+
+    strncpy( msg->from_host, sns_cx.host, SNS_HOSTNAME_LEN );
+
+    assert( sizeof(msg->ident) >= SNS_IDENT_LEN ) ;
+    strncpy( msg->ident, sns_cx.ident, SNS_HOSTNAME_LEN );
+
 }
 
 

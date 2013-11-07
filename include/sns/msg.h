@@ -61,7 +61,8 @@ typedef struct sns_msg_header {
     sns_msg_time_t time;
     int64_t from_pid;
     uint64_t seq;
-    uint8_t from_host[SNS_HOSTNAME_LEN];
+    char from_host[SNS_HOSTNAME_LEN];
+    char ident[SNS_IDENT_LEN];
 } sns_msg_header_t;
 
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
