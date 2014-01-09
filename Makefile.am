@@ -19,7 +19,6 @@ libsns_la_LIBADD = -lach -ldl -lamino
 
 lib_LTLIBRARIES += libsns_msg_joystick.la
 libsns_msg_joystick_la_SOURCES = src/msg/joystick.c
-libsns_msg_joystick_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_motor_ref.la
 libsns_msg_motor_ref_la_SOURCES = src/msg/motor_ref.c
@@ -29,6 +28,13 @@ libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
 
 lib_LTLIBRARIES += libsns_msg_vector.la
 libsns_msg_vector_la_SOURCES = src/msg/vector.c
+
+lib_LTLIBRARIES += libsns_msg_tf.la
+libsns_msg_tf_la_SOURCES = src/msg/tf.c
+
+lib_LTLIBRARIES += libsns_msg_tf_dx.la
+libsns_msg_tf_dx_la_SOURCES = src/msg/tf_dx.c
+
 
 bin_PROGRAMS = snsdump snsplot sns-trylock
 

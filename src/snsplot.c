@@ -46,6 +46,7 @@
 
 #include <inttypes.h>
 #include <getopt.h>
+#include <unistd.h>
 #include "sns.h"
 
 
@@ -96,7 +97,7 @@ static void plot(gnuplot_live_t *pl);
 static double opt_range_min = -10;
 static double opt_range_max = 10;
 static size_t opt_samples = 100;
-static double opt_frequency = 10;
+static double opt_frequency = 0;
 
 
 static const char *opt_channel = "foo";
@@ -148,7 +149,7 @@ static void next_msg(cx_t *cx, double **samples, char ***labels, size_t *n) {
 
     SNS_REQUIRE( (ACH_OK == r) || (ACH_MISSED_FRAME == r),
                  "Couldn't get frame: %s\n", ach_result_to_string(r) );
-    if( ACH_MISSED_FRAME == r ) {
+    if( ACH_MISSED_FRAME == r && opt_frequency <= 0 ) {
         fprintf(stderr, "missed frame\n");
     }
     cx->fun( buf, samples, labels, n );
@@ -172,7 +173,9 @@ static void run(cx_t *cx) {
         update(cx);
         plot(&cx->plot);
         aa_mem_region_local_release();
-        //usleep( (useconds_t) (1e6 / opt_frequency));
+        if( opt_frequency > 0 ) {
+            usleep( (useconds_t) (1e6 / opt_frequency));
+        }
     }
 }
 
@@ -211,8 +214,9 @@ static void plot(gnuplot_live_t *pl) {
         for( size_t k = 0;  k < pl->n_samples; k ++ ) {
             size_t i = (k+pl->i) % pl->n_samples;
             size_t idx = j + i*pl->n_each;
+            // TODO: actual  time
             fprintf(pl->gnuplot, "%f, %f\n",
-                    ((double)k/opt_frequency), (double)(pl->data)[idx] );
+                    (double)k, (double)(pl->data)[idx] );
         }
         fprintf(pl->gnuplot, "e\n" );
     }
@@ -241,7 +245,7 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Options --*/
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?hH0:1:" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "f:V?hH0:1:" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
 
@@ -250,6 +254,9 @@ int main( int argc, char **argv ) {
             break;
         case '1':
             opt_range_max = atof(optarg);
+            break;
+        case 'f':
+            opt_frequency = atof(optarg);
             break;
         case 'V':   /* version     */
             puts( "snsplot " PACKAGE_VERSION "\n"
@@ -268,6 +275,7 @@ int main( int argc, char **argv ) {
                   "Shell tool for CANopen\n"
                   "\n"
                   "Options:\n"
+                  "  -f frequency,                Max message frequency (0 for no sleep)\n"
                   "  -0 value,                    Minimum range value\n"
                   "  -1 value,                    Maximum range value\n"
                   "  -v,                          Make output more verbose\n"

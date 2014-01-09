@@ -79,7 +79,7 @@ void *sns_msg_plugin_symbol( const char *type, const char *symbol ) {
         strcat(buf,type);
         strcat(buf,suffix);
         dl_lib = dlopen(buf, RTLD_NOW);
-        SNS_REQUIRE( dl_lib, "Couldn't open plugin '%s'\n", buf );
+        SNS_REQUIRE( dl_lib, "Couldn't open plugin '%s': %s\n", buf, dlerror() );
     }
 
     /*-- Obtain thing -- */
@@ -177,6 +177,78 @@ void sns_msg_vector_dump ( FILE *out, const struct sns_msg_vector *msg ) {
     fprintf( out, "\n" );
 }
 
+/*---- transform ----*/
+void sns_msg_tf_dump ( FILE *out, const struct sns_msg_tf *msg ) {
+    dump_header( out, &msg->header, "tf" );
+    for( uint32_t i = 0; i < msg->n; i ++ ) {
+        fprintf(out, "\t%d: [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n",
+                i,
+                msg->tf[i].r.data[0],
+                msg->tf[i].r.data[1],
+                msg->tf[i].r.data[2],
+                msg->tf[i].r.data[3],
+                msg->tf[i].v.data[0],
+                msg->tf[i].v.data[1],
+                msg->tf[i].v.data[2] );
+    }
+    fprintf( out, "\n" );
+}
+
+void sns_msg_tf_plot_sample(
+    const struct sns_msg_tf *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->n * 7 );
+        for( size_t i = 0; i < msg->n; i ++ ) {
+            (*sample_ptr)[i*7+0] = msg->tf[i].r.x;
+            (*sample_ptr)[i*7+1] = msg->tf[i].r.y;
+            (*sample_ptr)[i*7+2] = msg->tf[i].r.z;
+            (*sample_ptr)[i*7+3] = msg->tf[i].r.w;
+            (*sample_ptr)[i*7+4] = msg->tf[i].v.x;
+            (*sample_ptr)[i*7+5] = msg->tf[i].v.y;
+            (*sample_ptr)[i*7+6] = msg->tf[i].v.z;
+        }
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, 7*msg->n*sizeof((*sample_labels)[0]) );
+        for( size_t i = 0; i < msg->n; i ++ ) {
+            (*sample_labels)[7*i+0] = aa_mem_region_printf( reg, "q_x %d", i );
+            (*sample_labels)[7*i+1] = aa_mem_region_printf( reg, "q_y %d", i );
+            (*sample_labels)[7*i+2] = aa_mem_region_printf( reg, "q_z %d", i );
+            (*sample_labels)[7*i+3] = aa_mem_region_printf( reg, "q_w %d", i );
+            (*sample_labels)[7*i+4] = aa_mem_region_printf( reg, "x %d", i );
+            (*sample_labels)[7*i+5] = aa_mem_region_printf( reg, "y %d", i );
+            (*sample_labels)[7*i+6] = aa_mem_region_printf( reg, "z %d", i );
+        }
+    }
+
+    if( sample_size )
+        *sample_size = 7*msg->n;
+}
+
+void sns_msg_tf_dx_dump ( FILE *out, const struct sns_msg_tf_dx *msg ) {
+    dump_header( out, &msg->header, "tf_dx" );
+    for( uint32_t i = 0; i < msg->n; i ++ ) {
+        fprintf(out,
+                "\t%d: [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n"
+                "\t    [%f\t%f\t%f\t|\t%f\t%f\t%f\t]\n",
+                i,
+                msg->tf_dx[i].tf.r.data[0],
+                msg->tf_dx[i].tf.r.data[1],
+                msg->tf_dx[i].tf.r.data[2],
+                msg->tf_dx[i].tf.r.data[3],
+                msg->tf_dx[i].tf.v.data[0],
+                msg->tf_dx[i].tf.v.data[1],
+                msg->tf_dx[i].tf.v.data[2],
+                msg->tf_dx[i].dx.dv[0], msg->tf_dx[i].dx.dv[1], msg->tf_dx[i].dx.dv[2],
+                msg->tf_dx[i].dx.omega[0], msg->tf_dx[i].dx.omega[1], msg->tf_dx[i].dx.omega[2]
+            );
+    }
+    fprintf( out, "\n" );
+}
 
 /*---- motor_ref ----*/
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {

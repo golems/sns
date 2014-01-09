@@ -45,6 +45,14 @@
 extern "C" {
 #endif
 
+
+/***************/
+/* Basic Types */
+/***************/
+
+typedef struct aa_tf_qv sns_tf;
+typedef struct aa_tf_qv_dx sns_tf_dx;
+
 /***********/
 /* HEADERS */
 /***********/
@@ -137,6 +145,47 @@ static inline size_t sns_msg_matrix_size_mn ( size_t rows, size_t cols ) {
 static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
     return sns_msg_matrix_size_mn(msg->rows,msg->cols);
 }
+
+
+/**************/
+/* Transforms */
+/**************/
+
+struct sns_msg_tf {
+    struct sns_msg_header header;
+    uint32_t n;
+    sns_tf tf[1];
+};
+
+static inline size_t sns_msg_tf_size_n ( size_t n ) {
+    static const struct sns_msg_tf *msg;
+    return sizeof(*msg) - sizeof(msg->tf[0]) + sizeof(msg->tf[0])*n;
+}
+static inline size_t sns_msg_tf_size ( const struct sns_msg_tf *msg ) {
+    return sns_msg_tf_size_n(msg->n);
+}
+
+void sns_msg_tf_dump ( FILE*, const struct sns_msg_tf *msg );
+void sns_msg_tf_plot_sample(
+    const struct sns_msg_tf *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
+
+struct sns_msg_tf_dx {
+    struct sns_msg_header header;
+    uint32_t n;
+    sns_tf_dx tf_dx[1];
+};
+
+static inline size_t sns_msg_tf_dx_size_n ( size_t n ) {
+    static const struct sns_msg_tf_dx *msg;
+    return sizeof(*msg) - sizeof(msg->tf_dx[0]) + sizeof(msg->tf_dx[0])*n;
+}
+static inline size_t sns_msg_tf_dx_size ( const struct sns_msg_tf_dx *msg ) {
+    return sns_msg_tf_dx_size_n(msg->n);
+}
+void sns_msg_tf_dx_dump ( FILE*, const struct sns_msg_tf_dx *msg );
+void sns_msg_tf_dx_plot_sample(
+    const struct sns_msg_tf_dx *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size );
+
 
  /**********/
  /* MOTORS */
