@@ -75,7 +75,17 @@ typedef struct sns_msg_header {
 
 _Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
- void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
+void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
+
+static inline struct timespec
+sns_msg_get_time( struct sns_msg_header *msg )
+{
+    struct timespec ts;
+    ts.tv_sec = msg->time.sec;
+    ts.tv_nsec = msg->time.nsec;
+    return ts;
+}
+
 
 
 void sns_msg_header_fill ( struct sns_msg_header *msg );
@@ -290,6 +300,8 @@ void sns_msg_joystick_plot_sample(
 
 typedef void sns_msg_dump_fun( FILE *, void* );
 typedef void sns_msg_plot_sample_fun( const void *, double **, char ***, size_t *) ;
+
+// TODO: message validation
 
 void *sns_msg_plugin_symbol( const char *type, const char *symbol );
 void sns_msg_dump( FILE *out, const void *msg ) ;

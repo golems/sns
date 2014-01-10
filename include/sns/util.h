@@ -68,6 +68,17 @@ static inline struct timespec sns_time_add_ns( struct timespec ts, int64_t ns ) 
     return r;
 }
 
+static inline
+struct timespec sns_now(void)
+{
+    /* TODO: CLOCK_MONOTONIC is machine local
+     * Look into Precision Time Protocol
+     */
+    struct timespec t;
+    clock_gettime( CLOCK_MONOTONIC, &t );
+    return t;
+}
+
 const char *sns_str_nullterm( const char *text, size_t n );
 
 unsigned long sns_parse_uhex( const char *arg, uint64_t max );
