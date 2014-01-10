@@ -102,6 +102,7 @@ static double opt_frequency = 0;
 
 static const char *opt_channel = "foo";
 static const char *opt_type = "void";
+static const char *opt_linepoint = "lines";
 
 /* ------- */
 /* HELPERS */
@@ -194,16 +195,17 @@ static void plot(gnuplot_live_t *pl) {
     if( ! pl->printed_header ) {
         pl->printed_header = 1;
         if( pl->labels )
-            fprintf(pl->gnuplot, "plot '-' with points title '%s'",
+            fprintf(pl->gnuplot, "plot '-' with %s title '%s'",
+                    opt_linepoint,
                 pl->labels[0]);
         else
-            fprintf(pl->gnuplot, "plot '-' with points title '0'");
+            fprintf(pl->gnuplot, "plot '-' with %s title '0'", opt_linepoint);
         for( size_t j = 1; j < pl->n_each; j++ ) {
             if( pl->labels )
-                fprintf(pl->gnuplot, ", '-' with points title '%s'",
-                    pl->labels[j]);
+                fprintf(pl->gnuplot, ", '-' with %s title '%s'",
+                        opt_linepoint, pl->labels[j]);
             else
-                fprintf(pl->gnuplot, ", '-' with points title '%"PRIuPTR"'", j);
+                fprintf(pl->gnuplot, ", '-' with %s title '%"PRIuPTR"'", opt_linepoint, j);
         }
         fprintf(pl->gnuplot, "\n");
     } else {
