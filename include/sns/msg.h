@@ -96,6 +96,13 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
 /* MACROS */
 /**********/
 
+// read an ACH message into buffer from the thread-local memory region
+enum ach_status
+sns_msg_local_get( ach_channel_t *chan, void **pbuf,
+                   size_t *frame_size,
+                   const struct timespec *ACH_RESTRICT abstime,
+                   int options );
+
 /* Define many functions for vararray messages */
 #define SNS_DEF_MSG_VAR( type, var )                                    \
     /* size_n */                                                        \
@@ -157,6 +164,27 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
     ( uint32_t n )                                                      \
     {                                                                   \
         return type ## _region_alloc( aa_mem_region_local_get(), n );   \
+    }                                                                   \
+    /* put */                                                           \
+    /* Put message to channel */                                        \
+    static inline enum ach_status                                       \
+    type ## _put                                                        \
+    ( ach_channel_t *chan, struct type *msg )                           \
+    {                                                                   \
+        return ach_put( chan, msg, type ## _size(msg) );                \
+    }                                                                   \
+    /* local_get */                                                     \
+    /* Get message, allocated from local memory region */               \
+    static inline enum ach_status                                       \
+    type ## _local_get                                                  \
+    ( ach_channel_t *chan, struct type **pmsg,                          \
+      size_t *frame_size,                                               \
+      const struct timespec *ACH_RESTRICT abstime,                      \
+      int options )                                                     \
+    {                                                                   \
+        return  sns_msg_local_get ( chan,                               \
+                                    (void**)pmsg, frame_size,           \
+                                    abstime, options ) ;                \
     }                                                                   \
 
 
@@ -288,12 +316,6 @@ SNS_DEC_MSG_PLUGINS( sns_msg_joystick );
 /* CONVENIENCE FUNCTIONS */
 /*************************/
 
-// read an ACH message into buffer from the thread-local memory region
-enum ach_status
-sns_msg_local_get( ach_channel_t *chan, void **pbuf,
-                   size_t *frame_size,
-                   const struct timespec *ACH_RESTRICT abstime,
-                   int options );
 
 
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n );
