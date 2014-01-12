@@ -55,7 +55,7 @@
 char *opt_channel = NULL;
 enum sns_motor_mode opt_mode = SNS_MOTOR_MODE_POS;
 sns_real_t *opt_u = NULL;
-size_t n_opt_u = 0;
+uint32_t n_opt_u = 0;
 
 static void posarg( char *arg, int i ) {
     if( 0 == i ) {
@@ -125,7 +125,7 @@ int main( int argc, char **argv ) {
     /*-- Construct Message --*/
     struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref*)alloca( sns_msg_motor_ref_size_n(n_opt_u) );
     msg->mode = opt_mode;
-    msg->n = n_opt_u;
+    msg->header.n = n_opt_u;
     memcpy( msg->u, opt_u, n_opt_u*sizeof(msg->u[0]) );
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );

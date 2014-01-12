@@ -125,7 +125,7 @@ static void process( int fd_beep, sns_msg_log_t *msg, size_t frame_size ) {
             sns_str_nullterm(msg->header.ident, sizeof(msg->header.from_host)),
             msg->header.from_pid,
             sns_str_nullterm(msg->header.from_host, sizeof(msg->header.from_host)),
-            sns_str_nullterm(msg->text, msg->n) );
+            sns_str_nullterm(msg->text, msg->header.n) );
     beep(fd_beep, msg->priority);
 }
 

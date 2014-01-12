@@ -126,13 +126,13 @@ int main( int argc, char **argv ) {
 
     /*-- Create Message -- */
     size_t n_str = strlen(opt_message);
-    size_t n_msg = sns_msg_log_size_n(n_str);
+    size_t n_msg = sns_msg_log_size_n((uint32_t)n_str);
     sns_msg_log_t *msg  = (sns_msg_log_t*)aa_mem_region_local_alloc(n_msg);
     memset(msg,0,n_msg);
     sns_msg_header_fill( &msg->header );
     strcpy(msg->text, opt_message);
     msg->priority = opt_priority;
-    msg->n = n_str;
+    msg->header.n = n_str;
 
 
     /*-- Put Message -- */

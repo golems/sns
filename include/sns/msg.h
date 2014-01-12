@@ -57,19 +57,17 @@ typedef struct aa_tf_qv_dx sns_tf_dx;
 /* HEADERS */
 /***********/
 
-typedef struct sns_msg_time {
-    int64_t sec;
-    int64_t dur_nsec;
-    uint32_t nsec;
-} sns_msg_time_t;
-
-// express duration in nanoseconds
-
+/* Each message begins with a header */
 typedef struct sns_msg_header {
-    sns_msg_time_t time;
-    int64_t from_pid;
-    uint64_t seq;
+    int64_t sec;              ///< Time message sent, seconds portion
+    int64_t dur_nsec;         ///< Valid message duration, nanoseconds
+    uint32_t nsec;            ///< Time message sent, nanoseconds portion
+    uint32_t n;               ///< Element count for variable-sized messages
+    int64_t from_pid;         ///< Sending PID
+    uint64_t seq;             ///< Sequence number
+    /// Sending Host
     char from_host[SNS_HOSTNAME_LEN];
+    /// Sending process name
     char ident[SNS_IDENT_LEN];
 } sns_msg_header_t;
 
@@ -81,12 +79,10 @@ static inline struct timespec
 sns_msg_get_time( struct sns_msg_header *msg )
 {
     struct timespec ts;
-    ts.tv_sec = msg->time.sec;
-    ts.tv_nsec = msg->time.nsec;
+    ts.tv_sec = msg->sec;
+    ts.tv_nsec = msg->nsec;
     return ts;
 }
-
-
 
 void sns_msg_header_fill ( struct sns_msg_header *msg );
 
@@ -104,39 +100,39 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
 #define SNS_DEF_MSG_VAR( type, var )                                    \
     /* size_n */                                                        \
     /* Returns size (in octets) necessary to hold n items  */           \
-    static inline size_t                                                \
+    static inline uint32_t                                              \
     type ## _size_n                                                     \
-    ( size_t n )                                                        \
+    ( uint32_t n )                                                      \
     {                                                                   \
         static const struct type *msg;                                  \
-        return ( sizeof(*msg) -                                         \
-             sizeof(msg->var[0]) +                                      \
-             n*sizeof(msg->var[0]) );                                   \
+        return (uint32_t)( sizeof(*msg) -                               \
+                         sizeof(msg->var[0]) +                          \
+                         n*sizeof(msg->var[0]) );                       \
     }                                                                   \
     /* size */                                                          \
     /* Returns actual size (in octets) of msg, */                       \
     /* based on its count variable */                                   \
-    static inline size_t                                                \
+    static inline uint32_t                                              \
     type ## _size                                                       \
     ( struct type *msg )                                                \
     {                                                                   \
-        return type ## _size_n( msg->n );;                              \
+        return type ## _size_n( msg->header.n );;                       \
     }                                                                   \
     /* init */                                                          \
     /* Initialize a message */                                          \
     static inline void                                                  \
     type ## _init                                                       \
-    ( struct type *msg, size_t n )                                      \
+    ( struct type *msg, uint32_t n )                                    \
     {                                                                   \
         memset(msg, 0, type ## _size_n(n) );                            \
         sns_msg_header_fill( &msg->header );                            \
-        msg->n = n;                                                     \
+        msg->header.n = n;                                              \
     }                                                                   \
     /* alloc */                                                         \
     /* Allocate message in heat */                                      \
     static inline struct type*                                          \
     type ## _heap_alloc                                                 \
-    ( size_t n )                                                        \
+    ( uint32_t n )                                                      \
     {                                                                   \
         struct type *msg = (struct type *) malloc(type ## _size_n(n) ); \
         type ## _init(msg,n);                                           \
@@ -146,7 +142,7 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
     /* Allocate message from region */                                  \
     static inline struct type*                                          \
     type ## _region_alloc                                               \
-    ( struct aa_mem_region *reg, size_t n )                             \
+    ( struct aa_mem_region *reg, uint32_t n )                           \
     {                                                                   \
         struct type *msg =                                              \
             (struct type *) aa_mem_region_alloc( reg,                   \
@@ -158,7 +154,7 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
     /* Allocate message from thread-local region */                     \
     static inline struct type*                                          \
     type ## _local_alloc                                                \
-    ( size_t n )                                                        \
+    ( uint32_t n )                                                      \
     {                                                                   \
         return type ## _region_alloc( aa_mem_region_local_get(), n );   \
     }                                                                   \
@@ -180,7 +176,6 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
 typedef struct sns_msg_log {
     struct sns_msg_header header;
     int priority;
-    size_t n;
     char text[1];
 } sns_msg_log_t;
 
@@ -193,7 +188,6 @@ SNS_DEC_MSG_PLUGINS( sns_msg_log );
 
 struct sns_msg_vector {
     struct sns_msg_header header;
-    uint64_t n;
     sns_real_t x[1];
 };
 
@@ -225,11 +219,9 @@ static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
 /* Transforms */
 /**************/
 
-
 /* TF */
 struct sns_msg_tf {
     struct sns_msg_header header;
-    uint64_t n;
     sns_tf tf[1];
 };
 
@@ -239,7 +231,6 @@ SNS_DEC_MSG_PLUGINS( sns_msg_tf );
 /* TF DX */
 struct sns_msg_tf_dx {
     struct sns_msg_header header;
-    uint64_t n;
     sns_tf_dx tf_dx[1];
 };
 
@@ -260,7 +251,6 @@ enum sns_motor_mode {
 struct sns_msg_motor_ref {
     struct sns_msg_header header;
     enum sns_motor_mode mode;
-    uint64_t n;
     sns_real_t u[1];
 };
 
@@ -270,7 +260,6 @@ SNS_DEC_MSG_PLUGINS( sns_msg_motor_ref );
 struct sns_msg_motor_state {
     struct sns_msg_header header;
     enum sns_motor_mode mode;
-    uint64_t n;
     struct {
         sns_real_t pos;
         sns_real_t vel;
@@ -294,7 +283,6 @@ struct sns_msg_joystick {
 
 SNS_DEF_MSG_VAR( sns_msg_joystick, axis );
 SNS_DEC_MSG_PLUGINS( sns_msg_joystick );
-
 
 /*************************/
 /* CONVENIENCE FUNCTIONS */
