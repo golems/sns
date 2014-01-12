@@ -251,19 +251,10 @@ void sns_msg_tf_dx_dump ( FILE *out, const struct sns_msg_tf_dx *msg ) {
 }
 
 /*---- motor_ref ----*/
-struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint32_t n ) {
+struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n ) {
     size_t size = sns_msg_motor_ref_size( & (struct sns_msg_motor_ref){.n=n} );
     struct sns_msg_motor_ref *msg =
         (struct sns_msg_motor_ref*)malloc( size );
-    memset(msg,0,sizeof(*msg));
-    msg->n = n;
-    return msg;
-}
-
-struct sns_msg_motor_ref *sns_msg_motor_ref_local_alloc ( uint32_t n ) {
-    size_t size = sns_msg_motor_ref_size( & (struct sns_msg_motor_ref){.n=n} );
-    struct sns_msg_motor_ref *msg =
-        (struct sns_msg_motor_ref*)aa_mem_region_local_alloc( size );
     memset(msg,0,sizeof(*msg));
     msg->n = n;
     return msg;
