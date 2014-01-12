@@ -313,10 +313,11 @@ void sns_end( ) {
 void sns_event( int level, int code, const char fmt[], ... ) {
     (void) code;
     /* maybe stderr */
-    if( sns_cx.stderr ) {
+    FILE *err = sns_cx.is_initialized ? sns_cx.stderr : stderr ;
+    if( err ) {
         va_list ap;
         va_start( ap, fmt );
-        vfprintf(sns_cx.stderr, fmt, ap );
+        vfprintf(err, fmt, ap );
         va_end( ap );
         /* Print a stack trace if something bad has happened */
         switch( level ) {
@@ -326,11 +327,11 @@ void sns_event( int level, int code, const char fmt[], ... ) {
         case LOG_ERR:
         case LOG_WARNING:
             // print a backtrace to stderr if it's a tty
-            fprintf(stderr,"\n--------STACK TRACE--------\n");
+            fprintf(err,"\n--------STACK TRACE--------\n");
             static void *buffer[SNS_BACKTRACE_LEN];
             int n = backtrace( buffer, SNS_BACKTRACE_LEN );
-            backtrace_symbols_fd( buffer, n, STDERR_FILENO );
-            fprintf(stderr,"--------END STACK TRACE----\n\n");
+            backtrace_symbols_fd( buffer, n, fileno(err) );
+            fprintf(err,"--------END STACK TRACE----\n\n");
         }
         return;
     }
