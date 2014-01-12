@@ -53,6 +53,12 @@ extern "C" {
 typedef struct aa_tf_qv sns_tf;
 typedef struct aa_tf_qv_dx sns_tf_dx;
 
+/** Weighted transform type */
+typedef struct {
+    sns_tf tf;
+    double weight;
+} sns_wt_tf;
+
 /***********/
 /* HEADERS */
 /***********/
@@ -255,6 +261,15 @@ struct sns_msg_tf {
 
 SNS_DEF_MSG_VAR( sns_msg_tf, tf );
 SNS_DEC_MSG_PLUGINS( sns_msg_tf );
+
+/* Weighted TF */
+struct sns_msg_wt_tf {
+    struct sns_msg_header header;
+    sns_wt_tf wt_tf[1];
+};
+
+SNS_DEF_MSG_VAR( sns_msg_wt_tf, wt_tf );
+SNS_DEC_MSG_PLUGINS( sns_msg_wt_tf );
 
 /* TF DX */
 struct sns_msg_tf_dx {

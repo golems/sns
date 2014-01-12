@@ -229,6 +229,62 @@ void sns_msg_tf_plot_sample(
         *sample_size = 7*msg->header.n;
 }
 
+void sns_msg_wt_tf_dump ( FILE *out, const struct sns_msg_wt_tf *msg ) {
+    dump_header( out, &msg->header, "tf" );
+    for( uint32_t i = 0; i < msg->header.n; i ++ ) {
+        fprintf(out, "\t%d: (%f) [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n",
+                i,
+                msg->wt_tf[i].weight,
+                msg->wt_tf[i].tf.r.data[0],
+                msg->wt_tf[i].tf.r.data[1],
+                msg->wt_tf[i].tf.r.data[2],
+                msg->wt_tf[i].tf.r.data[3],
+                msg->wt_tf[i].tf.v.data[0],
+                msg->wt_tf[i].tf.v.data[1],
+                msg->wt_tf[i].tf.v.data[2] );
+    }
+    fprintf( out, "\n" );
+}
+
+void sns_msg_wt_tf_plot_sample(
+    const struct sns_msg_wt_tf *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->header.n * 7 );
+        for( size_t i = 0; i < msg->header.n; i ++ ) {
+            (*sample_ptr)[i*8+0] = msg->wt_tf[i].weight;
+            (*sample_ptr)[i*8+1] = msg->wt_tf[i].tf.r.x;
+            (*sample_ptr)[i*8+2] = msg->wt_tf[i].tf.r.y;
+            (*sample_ptr)[i*8+3] = msg->wt_tf[i].tf.r.z;
+            (*sample_ptr)[i*8+4] = msg->wt_tf[i].tf.r.w;
+            (*sample_ptr)[i*8+5] = msg->wt_tf[i].tf.v.x;
+            (*sample_ptr)[i*8+6] = msg->wt_tf[i].tf.v.y;
+            (*sample_ptr)[i*8+7] = msg->wt_tf[i].tf.v.z;
+        }
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, 7*msg->header.n*sizeof((*sample_labels)[0]) );
+        for( size_t i = 0; i < msg->header.n; i ++ ) {
+            (*sample_labels)[7*i+0] = aa_mem_region_printf( reg, "wt %d", i );
+            (*sample_labels)[7*i+1] = aa_mem_region_printf( reg, "q_x %d", i );
+            (*sample_labels)[7*i+2] = aa_mem_region_printf( reg, "q_y %d", i );
+            (*sample_labels)[7*i+3] = aa_mem_region_printf( reg, "q_z %d", i );
+            (*sample_labels)[7*i+4] = aa_mem_region_printf( reg, "q_w %d", i );
+            (*sample_labels)[7*i+5] = aa_mem_region_printf( reg, "x %d", i );
+            (*sample_labels)[7*i+6] = aa_mem_region_printf( reg, "y %d", i );
+            (*sample_labels)[7*i+7] = aa_mem_region_printf( reg, "z %d", i );
+        }
+    }
+
+    if( sample_size )
+        *sample_size = 8*msg->header.n;
+}
+
+
+
 void sns_msg_tf_dx_dump ( FILE *out, const struct sns_msg_tf_dx *msg ) {
     dump_header( out, &msg->header, "tf_dx" );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {

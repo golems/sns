@@ -32,6 +32,9 @@ libsns_msg_vector_la_SOURCES = src/msg/vector.c
 lib_LTLIBRARIES += libsns_msg_tf.la
 libsns_msg_tf_la_SOURCES = src/msg/tf.c
 
+lib_LTLIBRARIES += libsns_msg_wt_tf.la
+libsns_msg_wt_tf_la_SOURCES = src/msg/wt_tf.c
+
 lib_LTLIBRARIES += libsns_msg_tf_dx.la
 libsns_msg_tf_dx_la_SOURCES = src/msg/tf_dx.c
 
