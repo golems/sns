@@ -17,26 +17,34 @@ libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c
 libsns_la_LIBADD = -lach -ldl -lamino
 
 
+## PLUGINS
 lib_LTLIBRARIES += libsns_msg_joystick.la
-libsns_msg_joystick_la_SOURCES = src/msg/joystick.c
+libsns_msg_joystick_la_SOURCES = src/msg_plugin.c
+libsns_msg_joystick_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_joystick
 
 lib_LTLIBRARIES += libsns_msg_motor_ref.la
-libsns_msg_motor_ref_la_SOURCES = src/msg/motor_ref.c
+libsns_msg_motor_ref_la_SOURCES = src/msg_plugin.c
+libsns_msg_motor_ref_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_ref
 
 lib_LTLIBRARIES += libsns_msg_motor_state.la
-libsns_msg_motor_state_la_SOURCES = src/msg/motor_state.c
+libsns_msg_motor_state_la_SOURCES = src/msg_plugin.c
+libsns_msg_motor_state_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_state
 
 lib_LTLIBRARIES += libsns_msg_vector.la
-libsns_msg_vector_la_SOURCES = src/msg/vector.c
+libsns_msg_vector_la_SOURCES = src/msg_plugin.c
+libsns_msg_vector_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_vector
 
 lib_LTLIBRARIES += libsns_msg_tf.la
-libsns_msg_tf_la_SOURCES = src/msg/tf.c
+libsns_msg_tf_la_SOURCES = src/msg_plugin.c
+libsns_msg_tf_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tf
 
 lib_LTLIBRARIES += libsns_msg_wt_tf.la
-libsns_msg_wt_tf_la_SOURCES = src/msg/wt_tf.c
+libsns_msg_wt_tf_la_SOURCES = src/msg_plugin.c
+libsns_msg_wt_tf_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_wt_tf
 
 lib_LTLIBRARIES += libsns_msg_tf_dx.la
-libsns_msg_tf_dx_la_SOURCES = src/msg/tf_dx.c
+libsns_msg_tf_dx_la_SOURCES = src/msg_plugin.c
+libsns_msg_tf_dx_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tf_dx
 
 
 bin_PROGRAMS = snsdump snsplot sns-trylock

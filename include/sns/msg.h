@@ -191,7 +191,7 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
         return  sns_msg_local_get ( chan,                               \
                                     (void**)pmsg, frame_size,           \
                                     abstime, options ) ;                \
-    }                                                                   \
+    }
 
 
 #define SNS_DEC_MSG_PLUGINS( type )                                     \
@@ -201,7 +201,7 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
         const struct type *msg,                                         \
         double **sample_ptr,                                            \
         char ***sample_labels,                                          \
-        size_t *sample_size );                                          \
+        size_t *sample_size );
 
 /*******/
 /* LOG */

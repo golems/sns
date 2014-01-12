@@ -41,10 +41,27 @@
 
 #include "sns.h"
 
-void sns_msg_dump( FILE *out, const void *msg ) {
-    sns_msg_motor_state_dump( out, (struct sns_msg_motor_state*) msg );
-}
 
-void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) {
-    sns_msg_motor_state_plot_sample( (struct sns_msg_motor_state*)msg, sample_ptr, sample_labels, sample_size );
-}
+#define SNS_MSG_PLUGIN_DUMP(type) type ## _dump
+#define SNS_MSG_PLUGIN_PLOT_SAMPLE(type) type ## _plot_sample
+
+/* Define the plugin entry points, dispatching to the appropriate
+ * functions */
+#define SNS_MSG_PLUGIN_DEFINE(type)                                     \
+    void sns_msg_dump                                                   \
+    ( FILE *out, const void *msg )                                      \
+    {                                                                   \
+        SNS_MSG_PLUGIN_DUMP(type)( out, (struct type*) msg );           \
+    }                                                                   \
+                                                                        \
+    void sns_msg_plot_sample                                            \
+    ( const void *msg,                                                  \
+      double **sample_ptr, char ***sample_labels, size_t *sample_size ) \
+    {                                                                   \
+        SNS_MSG_PLUGIN_PLOT_SAMPLE(type)                                \
+            ( (struct type*)msg,                                        \
+              sample_ptr, sample_labels, sample_size );                 \
+    }                                                                   \
+
+/* Define SNS_MSG_PLUGIN_TYPE on the command line */
+SNS_MSG_PLUGIN_DEFINE( SNS_MSG_PLUGIN_TYPE );
