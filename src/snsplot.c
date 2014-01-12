@@ -103,6 +103,7 @@ static double opt_frequency = 0;
 static const char *opt_channel = "foo";
 static const char *opt_type = "void";
 static const char *opt_linepoint = "lines";
+static int opt_persist = 0;
 
 /* ------- */
 /* HELPERS */
@@ -116,7 +117,12 @@ static void init(cx_t *cx) {
                    opt_channel, NULL );
 
     // open gnuplot
-    cx->plot.gnuplot = popen("gnuplot -persist", "w");
+    {
+        char *cmd = aa_mem_region_printf( aa_mem_region_local_get(),
+                                          "gnuplot%s", opt_persist ? " -persist" : "");
+        cx->plot.gnuplot = popen(cmd, "w");
+        aa_mem_region_local_pop(cmd);
+    }
 
     fprintf(cx->plot.gnuplot, "set title 'Channel: %s\n",
             opt_channel);
@@ -247,10 +253,12 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Options --*/
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "f:V?hH0:1:" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "pf:V?hH0:1:" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
-
+        case 'p':
+            opt_persist = 1;
+            break;
         case '0':
             opt_range_min = atof(optarg);
             break;
@@ -281,6 +289,7 @@ int main( int argc, char **argv ) {
                   "  -0 value,                    Minimum range value\n"
                   "  -1 value,                    Maximum range value\n"
                   "  -v,                          Make output more verbose\n"
+                  "  -p,                          Persist the plot after closing\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
                   "\n"
