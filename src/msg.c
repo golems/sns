@@ -230,7 +230,7 @@ void sns_msg_tf_plot_sample(
 }
 
 void sns_msg_wt_tf_dump ( FILE *out, const struct sns_msg_wt_tf *msg ) {
-    dump_header( out, &msg->header, "tf" );
+    dump_header( out, &msg->header, "wt_tf" );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {
         fprintf(out, "\t%d: (%f) [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n",
                 i,
