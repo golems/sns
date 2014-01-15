@@ -213,7 +213,7 @@ static int jach_read_to_msg( cx_t *cx )
 {
     int status = js_poll_state( cx->js );
     if( !status ) {
-        for( size_t i = 0; i < cx->msg->n && i < JS_AXIS_CNT; i++ ) {
+        for( size_t i = 0; i < cx->msg->header.n && i < JS_AXIS_CNT; i++ ) {
             double x = aa_fdeadzone( cx->js->state.axes[i], -cx->opt_deadzone, cx->opt_deadzone, 0.0 );
             //double x =  cx->js->state.axes[i];
             cx->msg->axis[i] = (x*cx->opt_axis[i].scale) + cx->opt_axis[i].offset;
