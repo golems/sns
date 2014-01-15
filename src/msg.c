@@ -383,14 +383,6 @@ void sns_msg_motor_state_plot_sample(
 
 /*---- joystick ----*/
 
-struct sns_msg_joystick *sns_msg_joystick_alloc ( uint32_t n ) {
-    size_t size = sns_msg_joystick_size( & (struct sns_msg_joystick){.n=n} );
-    struct sns_msg_joystick *msg = (struct sns_msg_joystick*) malloc( size );
-    memset(msg,0,sizeof(*msg));
-    msg->header.n = n;
-    return msg;
-}
-
 void sns_msg_joystick_dump ( FILE *out, const struct sns_msg_joystick *msg ) {
     dump_header( out, &msg->header, "joystick" );
     fprintf( out, "0x%08"PRIx64, msg->buttons );

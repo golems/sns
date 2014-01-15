@@ -77,7 +77,7 @@ typedef struct sns_msg_header {
     char ident[SNS_IDENT_LEN];
 } sns_msg_header_t;
 
-_Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
+int sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
 void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
 
@@ -320,7 +320,6 @@ SNS_DEC_MSG_PLUGINS( sns_msg_motor_state );
 struct sns_msg_joystick {
     struct sns_msg_header header;
     uint64_t buttons;
-    uint64_t n;
     sns_real_t axis[1];
 };
 
