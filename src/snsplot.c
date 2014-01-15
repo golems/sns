@@ -273,7 +273,7 @@ static void set_bit( aa_bits **pbits, size_t *psize, char *arg )
 
     if( size >= *psize ) {
         *pbits = (aa_bits*)realloc( *pbits, 2*size );
-        memset( pbits + *psize, 0, 2*size - *psize );
+        memset( *pbits + *psize, 0, 2*size - *psize );
         *psize = 2*size;
     }
 

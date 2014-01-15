@@ -98,7 +98,7 @@ static int ensure_time( struct timespec *now, const struct timespec *arg ) {
     }
 }
 
-_Bool sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now_arg ) {
+int sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now_arg ) {
     // FIXME: does this work with negative values?
     struct timespec now;
     int r = ensure_time( &now, now_arg );
@@ -250,9 +250,9 @@ void sns_msg_wt_tf_plot_sample(
     const struct sns_msg_wt_tf *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
 {
     aa_mem_region_t *reg = aa_mem_region_local_get();
-
+    size_t size = msg->header.n*8;
     if( sample_ptr ) {
-        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->header.n * 7 );
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * size );
         for( size_t i = 0; i < msg->header.n; i ++ ) {
             (*sample_ptr)[i*8+0] = msg->wt_tf[i].weight;
             (*sample_ptr)[i*8+1] = msg->wt_tf[i].tf.r.x;
@@ -266,21 +266,21 @@ void sns_msg_wt_tf_plot_sample(
     }
 
     if( sample_labels ) {
-        *sample_labels = (char**)aa_mem_region_alloc( reg, 7*msg->header.n*sizeof((*sample_labels)[0]) );
+        *sample_labels = (char**)aa_mem_region_alloc( reg, size*sizeof((*sample_labels)[0]) );
         for( size_t i = 0; i < msg->header.n; i ++ ) {
-            (*sample_labels)[7*i+0] = aa_mem_region_printf( reg, "wt %d", i );
-            (*sample_labels)[7*i+1] = aa_mem_region_printf( reg, "q_x %d", i );
-            (*sample_labels)[7*i+2] = aa_mem_region_printf( reg, "q_y %d", i );
-            (*sample_labels)[7*i+3] = aa_mem_region_printf( reg, "q_z %d", i );
-            (*sample_labels)[7*i+4] = aa_mem_region_printf( reg, "q_w %d", i );
-            (*sample_labels)[7*i+5] = aa_mem_region_printf( reg, "x %d", i );
-            (*sample_labels)[7*i+6] = aa_mem_region_printf( reg, "y %d", i );
-            (*sample_labels)[7*i+7] = aa_mem_region_printf( reg, "z %d", i );
+            (*sample_labels)[8*i+0] = aa_mem_region_printf( reg, "wt %d", i );
+            (*sample_labels)[8*i+1] = aa_mem_region_printf( reg, "q_x %d", i );
+            (*sample_labels)[8*i+2] = aa_mem_region_printf( reg, "q_y %d", i );
+            (*sample_labels)[8*i+3] = aa_mem_region_printf( reg, "q_z %d", i );
+            (*sample_labels)[8*i+4] = aa_mem_region_printf( reg, "q_w %d", i );
+            (*sample_labels)[8*i+5] = aa_mem_region_printf( reg, "x %d", i );
+            (*sample_labels)[8*i+6] = aa_mem_region_printf( reg, "y %d", i );
+            (*sample_labels)[8*i+7] = aa_mem_region_printf( reg, "z %d", i );
         }
     }
 
     if( sample_size )
-        *sample_size = 8*msg->header.n;
+        *sample_size = size;
 }
 
 
