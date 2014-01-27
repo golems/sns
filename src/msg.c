@@ -122,6 +122,9 @@ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, i
 }
 
 void sns_msg_header_fill ( struct sns_msg_header *msg ) {
+    // lazily init
+    if( !sns_cx.is_initialized ) sns_init();
+
     msg->from_pid = sns_cx.pid;
 
     assert( sizeof(msg->from_host) >= SNS_HOSTNAME_LEN ) ;
