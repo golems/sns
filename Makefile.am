@@ -12,10 +12,8 @@ init_ddir = $(sysconfdir)/init.d
 init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
-
 libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c
-libsns_la_LIBADD = -lach -ldl -lamino
-
+libsns_la_LIBADD = -lach
 
 ## PLUGINS
 lib_LTLIBRARIES += libsns_msg_joystick.la
@@ -51,23 +49,23 @@ bin_PROGRAMS = snsdump snsplot sns-trylock
 
 
 snsdump_SOURCES = src/snsdump.c
-snsdump_LDADD = libsns.la -lach -lamino -lblas -llapack
+snsdump_LDADD = libsns.la -lamino -llapack -lblas
 
 snsplot_SOURCES = src/snsplot.c
-snsplot_LDADD = libsns.la -lach -lamino -lblas -llapack
+snsplot_LDADD = libsns.la -lamino -llapack -lblas
 
 sns_trylock_SOURCES = src/sns-trylock.c
 
 
 bin_PROGRAMS += snslogd
 snslogd_SOURCES = src/snslogd.c
-snslogd_LDADD = libsns.la -lach -lamino -lblas -llapack
+snslogd_LDADD = libsns.la -lamino -llapack -lblas
 
 
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
-snslog_LDADD = libsns.la -lach -lamino -lblas -llapack
+snslog_LDADD = libsns.la -lamino -llapack -lblas
 
 bin_PROGRAMS += snsref
 snsref_SOURCES = src/snsref.c
-snsref_LDADD = libsns.la -lach -lamino -lblas -llapack
+snsref_LDADD = libsns.la -lamino -llapack -lblas
