@@ -100,10 +100,14 @@ static void init(cx_t *cx) {
     cx->fun = (sns_msg_plot_sample_fun*) sns_msg_plugin_symbol( opt_type, "sns_msg_plot_sample" );
     SNS_REQUIRE( cx->fun, "Couldn't dlsym for %s\n", opt_type );
 
+    {
+        ach_channel_t *chans[] = {&cx->chan, NULL};
+        sns_sigcancel( chans, sns_sig_term_default );
+    }
+
     // init struct
     update(cx,1);
 }
-
 
 static void update(cx_t *cx, int header) {
     // get message
@@ -117,6 +121,7 @@ static void update(cx_t *cx, int header) {
         ach_status_t r = sns_msg_local_get( &cx->chan, (void**)&buf, &frame_size,
                                             NULL, ACH_O_WAIT );
 
+        if( ACH_CANCELED == r ) return;
         SNS_REQUIRE( (ACH_OK == r) || (ACH_MISSED_FRAME == r),
                      "Couldn't get frame: %s\n", ach_result_to_string(r) );
         if( ACH_MISSED_FRAME == r ) {
@@ -136,7 +141,6 @@ static void update(cx_t *cx, int header) {
         fprintf(cx->out, "# time\t");
         for( size_t i = 0; i < n; i ++ )
             fprintf(cx->out,"%s%s", labels[i], (i == n-1) ? "\n\n" : "\t" );
-        fflush(cx->out);
         cx->n = n;
     }
 
@@ -182,9 +186,12 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Options --*/
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "t:pf:V?hH0:1:x:i:" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "o:V?" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
+        case 'o':
+            opt_out = optarg;
+            break;
         case 'V':   /* version     */
             puts( "snsrec " PACKAGE_VERSION "\n"
                   "\n"
@@ -200,6 +207,7 @@ int main( int argc, char **argv ) {
                   "Record SNS messages\n"
                   "\n"
                   "Options:\n"
+                  "  -o FILE,                     Output File\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
                   "\n"

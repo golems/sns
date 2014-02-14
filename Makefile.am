@@ -73,3 +73,7 @@ snsref_LDADD = libsns.la -lamino -llapack -lblas
 bin_PROGRAMS += snsrec
 snsrec_SOURCES = src/snsrec.c
 snsrec_LDADD = libsns.la -lamino -llapack -lblas
+
+bin_PROGRAMS += snsreced
+snsreced_SOURCES = src/snsreced.c
+snsreced_LDADD = libsns.la -lamino -llapack -lblas
