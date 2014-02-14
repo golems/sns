@@ -131,6 +131,17 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
     {                                                                   \
         return type ## _size_n( msg->header.n );;                       \
     }                                                                   \
+    /* check size */                                                    \
+    /* Returns difference between mem_size and recorded size  */        \
+    static inline ssize_t                                               \
+    type ## _check_size                                                 \
+    ( struct type *msg, size_t mem_size )                               \
+    {                                                                   \
+        if( mem_size < sizeof(msg->header) ) {                          \
+            return (ssize_t)mem_size - (ssize_t)sizeof(msg->header);    \
+        }                                                               \
+        return (ssize_t)mem_size - (ssize_t)type ## _size(msg);         \
+    }                                                                   \
     /* init */                                                          \
     /* Initialize a message */                                          \
     static inline void                                                  \
