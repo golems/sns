@@ -107,6 +107,8 @@ int main( int argc, char **argv ) {
     int first = 1;
     size_t n_real;
     size_t lineno = 1;
+    double t0;
+
     while( !feof(fin) ) {
         // read line
         char *line = aa_io_getline(fin,reg);
@@ -129,14 +131,15 @@ int main( int argc, char **argv ) {
                 char *name = aa_mem_region_printf( reg, "%lu.dat", i );
                 fout[i] = fopen(name,"w");
             }
+            t0 = X[0];
         } else if( n != n_real ) {
-            fprintf(stderr,"Error on line %lu\n", lineno);
+            fprintf(stderr,"Error on line %lu: n=%lu, expected %lu\n", lineno, n, n_real);
             exit(EXIT_FAILURE);
         }
 
         // write line
         for( size_t i = 0; i < n-1; i ++ ) {
-            fprintf(fout[i],"%f,%f\n",X[0], X[i+1]);
+            fprintf(fout[i],"%f %f\n",X[0]-t0, X[i+1]);
         }
         aa_mem_region_release(reg);
         lineno++;
