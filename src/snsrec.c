@@ -130,6 +130,13 @@ static void update(cx_t *cx, int header) {
         cx->fun( buf, &sample, header ? &labels : NULL, &n );
     }
 
+    sigset_t set;
+    sigemptyset(&set);
+    for( size_t i = 0; sns_sig_term_default[i]; i++ ) {
+        sigaddset( &set, sns_sig_term_default[i] );
+    }
+    sigprocmask(SIG_BLOCK, &set, NULL);
+
     if( header ) {
         time_t t = time(NULL);
         char *time_str = ctime(&t);
@@ -149,16 +156,19 @@ static void update(cx_t *cx, int header) {
                  n, cx->n );
     fprintf(cx->out,"%"PRId64".%09"PRIu32"\t", buf->sec, buf->nsec);
     aa_io_d_print( cx->out, n, sample, 1 );
+    fflush(cx->out);
+
+    sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
 static void run(cx_t *cx) {
     while(!sns_cx.shutdown) {
         update(cx,0);
+        aa_mem_region_local_release();
     }
 }
 
 void destroy(cx_t *cx) {
-    fflush(cx->out);
     fclose(cx->out);
     sns_chan_close( &cx->chan );
     sns_end();
