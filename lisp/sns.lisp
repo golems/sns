@@ -55,12 +55,18 @@
                      (cffi:foreign-free pointer)))
   b)
 
+;; TODO: size checks
+
 (defgeneric msg-size-n (msg n))
 (defgeneric msg-size (msg))
 (defgeneric msg-alloc (type n))
 
 (defgeneric msg-put (channel msg))
 (defgeneric msg-get (channel msg &key wait last))
+
+(defgeneric msg-aref (msg i))
+(defgeneric msg-aref (msg i))
+(defgeneric msg-decode (type pointer))
 
 (defmethod ach::put-object (channel (object msg-buffer))
   (ach:put-pointer channel (msg-buffer-pointer object) (msg-buffer-size object)))
@@ -80,10 +86,10 @@
                    r))))))
 
 (defmacro def-msg-var (type slot)
-  (let* ((slot-type-raw (foreign-slot-type `(:struct ,type) slot))
-         (slot-type (case slot-type-raw
-                     ((:double) slot-type-raw)
-                     (otherwise (list :struct slot-type-raw))))
+  (let* ((slot-type (foreign-slot-type `(:struct ,type) slot))
+         ;; (slot-type (case slot-type-raw
+         ;;             ((:double) slot-type-raw)
+         ;;             (otherwise (list :struct slot-type-raw))))
         (make-it (intern (concatenate 'string "MAKE-" (string type)))))
     `(progn
        (def-msg-base ,type)
@@ -96,6 +102,12 @@
                 (pointer (foreign-alloc :uint8 :count size)))
            (msg-buffer-initialize (,make-it)
                                   pointer size)))
+        (defmethod msg-aref-ptr ((msg ,type) i)
+          (let ((base (foreign-slot-pointer (msg-buffer-pointer msg)
+                                            '(:struct ,type) ',slot)))
+            (mem-aptr base ',slot-type i)))
+        (defmethod msg-aref ((msg ,type) i)
+          (msg-decode ',type (msg-aref-ptr msg i)))
        )))
 
 
@@ -112,6 +124,35 @@
   (buttons :uint64)
   (axis :double :count 1))
 (def-msg-var msg-joystick axis)
+
+(defun decode-double (pointer count)
+  (let ((v (make-array count :element-type 'double-float)))
+    (dotimes (i count)
+      (setf (aref v i)
+            (mem-aref pointer :double i)))
+    v))
+
+(defmethod msg-decode ((type (eql 'quaternion)) pointer)
+  (aa::make-quaternion :data (decode-double pointer 4)))
+
+(defmethod msg-decode ((type (eql 'vec3)) pointer)
+  (aa::make-vec3 :data (decode-double pointer 3)))
+
+(defcstruct wt-tf
+  (r :double :count 4)
+  (x :double :count 3)
+  (weight :double))
+(defcstruct msg-wt-tf
+  (header (:struct msg-header))
+  (wt-tf (:struct wt-tf) :count 1))
+(def-msg-var msg-wt-tf wt-tf)
+(defmethod msg-decode ((type (eql 'msg-wt-tf)) pointer)
+  (aa::make-quaternion-translation :quaternion
+                                   (msg-decode 'quaternion
+                                               (foreign-slot-value pointer '(:struct wt-tf) 'r))
+                                   :translation
+                                   (msg-decode 'vec3
+                                               (foreign-slot-value pointer '(:struct wt-tf) 'x))))
 
 (defun get-foreign-string (pointer max)
   (with-output-to-string (s)
