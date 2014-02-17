@@ -132,3 +132,19 @@
     (format stream "~&ident: ~A" (get-foreign-string (slot 'ident) +ident-len+))
     (format stream "~&n: ~A" (slot 'n))
     ))
+
+
+(defun rec-edit (input-file output-directory &key filter if-exists zero-time)
+  (let* ((data-0 (aa::read-vectors input-file))
+         (data (if filter (mapcar filter data-0) data-0))
+         (t-0 (cond
+                ((eq zero-time t)
+                 (elt (elt data 0) 0))
+                (t 0)))
+         (n (length (car data))))
+    (dotimes (i (1- n))
+      (aa::write-float-lists (loop for elt in data
+                                collect (list (- (aref elt 0) t-0)
+                                              (aref elt (1+ i))))
+                             (format nil "~A/~D.dat" output-directory i)
+                             :if-exists if-exists))))
