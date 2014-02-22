@@ -40,6 +40,21 @@
 
 (in-package :sns)
 
+;;; TODO: use Lisp arrays for message buffers instead of foreign-heap
+
+(define-condition msg-error (error)
+  ((message
+    :initarg :message)
+   (type
+    :initarg :type)))
+
+
+(defun msg-error (type fmt &rest args)
+  (error 'msg-error
+        :message (apply #'format nil fmt args)
+        :type type))
+
+(defconstant +header-size+ (foreign-type-size '(:struct msg-header)))
 
 (defstruct msg-buffer
   pointer
@@ -55,41 +70,75 @@
                      (cffi:foreign-free pointer)))
   b)
 
+(defmacro with-msg-pointer ((pointer-var &optional (size-var (gensym)))
+                            msg &body body)
+  (with-gensyms (msg-1)
+    `(let ((,msg-1 ,msg))
+       (let ((,pointer-var (msg-buffer-pointer ,msg-1))
+             (,size-var (msg-buffer-size ,msg-1)))
+         (when (< ,size-var  +header-size+)
+           (msg-error :overflow "Message buffer (~A) smaller than header size (~A)"
+                      ,size-var +header-size+))
+         ,@body))))
+
+(defun msg-header (msg slot)
+  (with-msg-pointer (p) msg
+    (foreign-slot-value p
+                        '(:struct msg-header)
+                        slot)))
+
+(defun check-var-msg (actual-size obj-size count index)
+  (let ((expected-size (+ +header-size+
+                          (* obj-size count))))
+    (when (< actual-size expected-size)
+      (msg-error :overflow "Message buffer (~A) smaller than expected size (~A)"
+                 actual-size expected-size)))
+  (when (>= index count)
+    (msg-error :overflow "Index (~A) out of bounds (~A)"
+               index count)))
+
 ;; TODO: size checks
 
 (defgeneric msg-size-n (msg n))
 (defgeneric msg-size (msg))
 (defgeneric msg-alloc (type n))
 
-(defgeneric msg-put (channel msg))
-(defgeneric msg-get (channel msg &key wait last))
+(defgeneric put-msg (channel msg))
+(defgeneric get-msg (channel msg &key wait last))
+(defgeneric check-msg (channel))
 
 (defgeneric msg-aref (msg i))
 (defgeneric msg-aref (msg i))
+(defgeneric msg-aref-ptr (msg i))
 (defgeneric msg-decode (type pointer))
 
 (defmethod ach::put-object (channel (object msg-buffer))
-  (ach:put-pointer channel (msg-buffer-pointer object) (msg-buffer-size object)))
+  (with-msg-pointer (ptr size) object
+    (ach:put-pointer channel ptr size)))
 
-(defmethod msg-put (channel (msg msg-buffer))
+(defmethod put-msg (channel (msg msg-buffer))
   (ach::put-object channel msg))
+
+(defun decode-double (pointer count)
+  (let ((v (make-array count :element-type 'double-float)))
+    (dotimes (i count)
+      (setf (aref v i)
+            (mem-aref pointer :double i)))
+    v))
 
 (defmacro def-msg-base (type)
   (let ((make-it (intern (concatenate 'string "MAKE-" (string type)))))
     `(progn
        (defstruct (,type (:include msg-buffer)))
-       (defmethod msg-get (channel (msg (eql ',type)) &key wait last)
-         ;; TODO: check message size
+       (defmethod get-msg (channel (msg (eql ',type)) &key wait last)
          (multiple-value-bind (pointer r frame-size)
              (ach::get-foreign-alloc channel :wait wait :last last)
-           (values (msg-buffer-initialize (,make-it) pointer frame-size)
-                   r))))))
+           (let ((msg (msg-buffer-initialize (,make-it) pointer frame-size)))
+             (check-msg-header msg)
+             (values msg r)))))))
 
 (defmacro def-msg-var (type slot)
   (let* ((slot-type (foreign-slot-type `(:struct ,type) slot))
-         ;; (slot-type (case slot-type-raw
-         ;;             ((:double) slot-type-raw)
-         ;;             (otherwise (list :struct slot-type-raw))))
         (make-it (intern (concatenate 'string "MAKE-" (string type)))))
     `(progn
        (def-msg-base ,type)
@@ -103,13 +152,20 @@
            (msg-buffer-initialize (,make-it)
                                   pointer size)))
         (defmethod msg-aref-ptr ((msg ,type) i)
-          (let ((base (foreign-slot-pointer (msg-buffer-pointer msg)
-                                            '(:struct ,type) ',slot)))
-            (mem-aptr base ',slot-type i)))
+          (with-msg-pointer (pointer size) msg
+            (check-var-msg size (foreign-type-size ',slot-type)
+                           (foreign-slot-value pointer '(:struct msg-header) pointer) 'n)
+            (let ((base (foreign-slot-pointer pointer '(:struct ,type) ',slot)))
+              (mem-aptr base ',slot-type i))))
         (defmethod msg-aref ((msg ,type) i)
           (msg-decode ',type (msg-aref-ptr msg i)))
        )))
 
+(defmethod msg-decode ((type (eql 'quaternion)) pointer)
+  (aa::make-quaternion :data (decode-double pointer 4)))
+
+(defmethod msg-decode ((type (eql 'vec3)) pointer)
+  (aa::make-vec3 :data (decode-double pointer 3)))
 
 (defcstruct tf
   (r :double :count 4)
@@ -119,24 +175,19 @@
   (tf (:struct tf) :count 1))
 (def-msg-var msg-tf tf)
 
+(defmethod msg-decode ((type (eql 'msg-tf)) pointer)
+  (aa::make-quaternion-translation :quaternion
+                                   (msg-decode 'quaternion
+                                               (foreign-slot-value pointer '(:struct wt-tf) 'r))
+                                   :translation
+                                   (msg-decode 'vec3
+                                               (foreign-slot-value pointer '(:struct wt-tf) 'x))))
+
 (defcstruct msg-joystick
   (header (:struct msg-header))
   (buttons :uint64)
   (axis :double :count 1))
 (def-msg-var msg-joystick axis)
-
-(defun decode-double (pointer count)
-  (let ((v (make-array count :element-type 'double-float)))
-    (dotimes (i count)
-      (setf (aref v i)
-            (mem-aref pointer :double i)))
-    v))
-
-(defmethod msg-decode ((type (eql 'quaternion)) pointer)
-  (aa::make-quaternion :data (decode-double pointer 4)))
-
-(defmethod msg-decode ((type (eql 'vec3)) pointer)
-  (aa::make-vec3 :data (decode-double pointer 3)))
 
 (defcstruct wt-tf
   (r :double :count 4)
@@ -162,18 +213,16 @@
        do (write-char (code-char c) s))))
 
 (defun msg-print-header (msg &optional (stream t))
-  (assert (>= (msg-buffer-size msg)
-              (foreign-type-size '(:struct msg-header))))
-  (labels ((slot (x) (foreign-slot-value (msg-buffer-pointer msg) '(:struct msg-header) x)))
-    (format stream "~&sec: ~A" (slot 'sec))
-    (format stream "~&nsec: ~A" (slot 'nsec))
-    (format stream "~&dur-nsec: ~A" (slot 'dur-nsec))
-    (format stream "~&from-pid: ~A" (slot 'from-pid))
-    (format stream "~&from-host: ~A" (get-foreign-string (slot 'from-host) +hostname-len+))
-    (format stream "~&ident: ~A" (get-foreign-string (slot 'ident) +ident-len+))
-    (format stream "~&n: ~A" (slot 'n))
-    ))
-
+  (with-msg-pointer (ptr) msg
+    (labels ((slot (x) (foreign-slot-value ptr '(:struct msg-header) x)))
+      (format stream "~&sec: ~A" (slot 'sec))
+      (format stream "~&nsec: ~A" (slot 'nsec))
+      (format stream "~&dur-nsec: ~A" (slot 'dur-nsec))
+      (format stream "~&from-pid: ~A" (slot 'from-pid))
+      (format stream "~&from-host: ~A" (get-foreign-string (slot 'from-host) +hostname-len+))
+      (format stream "~&ident: ~A" (get-foreign-string (slot 'ident) +ident-len+))
+      (format stream "~&n: ~A" (slot 'n))
+      )))
 
 (defun rec-edit (input-file output-directory &key filter if-exists zero-time)
   (let* ((data-0 (aa::read-vectors input-file))

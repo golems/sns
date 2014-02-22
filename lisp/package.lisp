@@ -39,5 +39,7 @@
 
 (defpackage :sns
   (:use :cl :cffi :alexandria :amino)
-  (:export
-   ))
+  (:export :msg-get :msg-put :msg-decode :msg-aref
+           ;; message types
+           :msg-tf
+           :msg-wt-tf))
