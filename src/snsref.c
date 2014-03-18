@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
                   "\n"
                   "Options:\n"
                   "  -p                           Set positions (default)\n"
-                  "  -d                           Set velocies\n"
+                  "  -d                           Set velocities\n"
                   "  -v,                          Make output more verbose\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
