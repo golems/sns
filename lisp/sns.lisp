@@ -126,6 +126,10 @@
             (mem-aref pointer :double i)))
     v))
 
+(defun check-msg-header (msg)
+  ;; todo
+  )
+
 (defmacro def-msg-base (type)
   (let ((make-it (intern (concatenate 'string "MAKE-" (string type)))))
     `(progn
@@ -154,7 +158,7 @@
         (defmethod msg-aref-ptr ((msg ,type) i)
           (with-msg-pointer (pointer size) msg
             (check-var-msg size (foreign-type-size ',slot-type)
-                           (foreign-slot-value pointer '(:struct msg-header) pointer) 'n)
+                           (foreign-slot-value pointer '(:struct msg-header) 'n) i)
             (let ((base (foreign-slot-pointer pointer '(:struct ,type) ',slot)))
               (mem-aptr base ',slot-type i))))
         (defmethod msg-aref ((msg ,type) i)
@@ -178,10 +182,13 @@
 (defmethod msg-decode ((type (eql 'msg-tf)) pointer)
   (aa::make-quaternion-translation :quaternion
                                    (msg-decode 'quaternion
-                                               (foreign-slot-value pointer '(:struct wt-tf) 'r))
+                                               (foreign-slot-value pointer '(:struct tf) 'r))
                                    :translation
                                    (msg-decode 'vec3
-                                               (foreign-slot-value pointer '(:struct wt-tf) 'x))))
+                                               (foreign-slot-value pointer '(:struct tf) 'x))))
+
+;; ;; (defmethod decode-msg ((msg msg-tf))
+;; ;;   (msg-decode 'msg-tf (msg-aref-ptr msg 0)))
 
 (defcstruct msg-joystick
   (header (:struct msg-header))
@@ -200,7 +207,7 @@
 (defmethod msg-decode ((type (eql 'msg-wt-tf)) pointer)
   (aa::make-quaternion-translation :quaternion
                                    (msg-decode 'quaternion
-                                               (foreign-slot-value pointer '(:struct wt-tf) 'r))
+                                               (foreign-slot-value  pointer '(:struct wt-tf) 'r))
                                    :translation
                                    (msg-decode 'vec3
                                                (foreign-slot-value pointer '(:struct wt-tf) 'x))))
