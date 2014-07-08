@@ -200,7 +200,7 @@ void sns_sigcancel( ach_channel_t **chan, const int *sig ) {
     if(chan) {
         size_t i;
         for( i = 0; NULL != chan[i]; i ++ );
-        i++;
+        i++; // one more for the null
         cancel_chans = (ach_channel_t**)realloc( cancel_chans, i * sizeof(cancel_chans[0]) );
         memcpy( cancel_chans, chan, i*sizeof(chan[0]) );
     }

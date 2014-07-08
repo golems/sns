@@ -90,10 +90,19 @@ void sns_end( void );
 
 
 /* -- Signal Handling -- */
-/** When signal 'sig' is received, cancel waits on 'chan' */
+/** Install signal handlers for graceful shutdown.
+ *
+ * When signal 'sig' is received, cancel waits on 'chan'.
+ * Also sets sns_cx.shutdown to true.
+ *
+ * chan is a null-terminated array of ach channels.
+ */
 void sns_sigcancel( ach_channel_t **chan, const int sig[] );
 
-/* Signals which should terminate the process */
+/* Signals which should terminate the process.
+ *
+ * You probably want to pass this to sns_sigcancel
+ */
 extern int sns_sig_term_default[];
 
 /*********************/
@@ -127,9 +136,6 @@ void sns_die( void );
 
 #define SNS_LOG( priority, ... )                                        \
     if( SNS_LOG_PRIORITY(priority) ) { sns_event( priority, 0,  __VA_ARGS__); }
-
-
-
 
 /********************/
 /* Channel Handlers */

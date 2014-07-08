@@ -92,7 +92,7 @@ sns_msg_get_time( struct sns_msg_header *msg )
 
 void sns_msg_header_fill ( struct sns_msg_header *msg );
 
-/* Return 0 is frame_size is too small */
+/* True if frame_size is too small */
 #define SNS_MSG_CHECK_SIZE( type, pointer, frame_size )         \
     ( (frame_size) < sns_msg_ ## type ## _size_n(0) ||          \
       (frame_size) < sns_msg_ ## type ## _size(pointer) )
