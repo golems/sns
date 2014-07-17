@@ -109,6 +109,7 @@ static aa_bits *opt_exclude = NULL;
 static size_t opt_n_exclude = 0;
 static aa_bits *opt_include = NULL;
 static size_t opt_n_include = 0;
+static const char *opt_title = NULL;
 
 
 /* ------- */
@@ -138,8 +139,8 @@ static void init(cx_t *cx) {
         aa_mem_region_local_pop(cmd);
     }
 
-    fprintf(cx->plot.gnuplot, "set title 'Channel: %s\n",
-            opt_channel);
+    fprintf(cx->plot.gnuplot, "set title '%s'\n",
+            opt_title ? opt_title : opt_channel);
     fprintf(cx->plot.gnuplot, "set xlabel 'Time (s)'\n");
     //fprintf(cx->plot.gnuplot, "set ylabel '%s\n", opt_quantity);
     fprintf(cx->plot.gnuplot, "set yrange [%f:%f]\n", opt_range_min, opt_range_max);
@@ -184,8 +185,8 @@ static void update(cx_t *cx) {
     SNS_REQUIRE( n == cx->plot.n_each,
                  "Wrong sample size: %"PRIuPTR", wanted %"PRIuPTR"\n",
                  n, cx->plot.n_each );
-    aa_fcpy( cx->plot.data + (cx->plot.i*cx->plot.n_each), pbuf,
-             cx->plot.n_each );
+    AA_MEM_CPY( cx->plot.data + (cx->plot.i*cx->plot.n_each), pbuf,
+                cx->plot.n_each );
     cx->plot.i = (cx->plot.i + 1) % cx->plot.n_samples;
 }
 
@@ -287,7 +288,7 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Options --*/
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "pf:V?hH0:1:x:i:" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "t:pf:V?hH0:1:x:i:" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
         case 'p':
@@ -308,6 +309,9 @@ int main( int argc, char **argv ) {
         case 'i':
             set_bit( &opt_include, &opt_n_include, optarg );
             break;
+        case 't':
+            opt_title = optarg;
+            break;
         case 'V':   /* version     */
             puts( "snsplot " PACKAGE_VERSION "\n"
                   "\n"
@@ -326,6 +330,7 @@ int main( int argc, char **argv ) {
                   "\n"
                   "Options:\n"
                   "  -f frequency,                Max message frequency (0 for no sleep)\n"
+                  "  -t title,                    Plot title\n"
                   "  -0 value,                    Minimum range value\n"
                   "  -1 value,                    Maximum range value\n"
                   "  -v,                          Make output more verbose\n"
