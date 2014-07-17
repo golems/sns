@@ -184,7 +184,7 @@ void sns_msg_vector_dump ( FILE *out, const struct sns_msg_vector *msg ) {
 void sns_msg_tf_dump ( FILE *out, const struct sns_msg_tf *msg ) {
     dump_header( out, &msg->header, "tf" );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {
-        fprintf(out, "\t%d: [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n",
+        fprintf(out, "\t%d: [%f\t%f\t%f\t%f\t%f\t%f\t%f\t]\n",
                 i,
                 msg->tf[i].r.data[0],
                 msg->tf[i].r.data[1],
@@ -235,7 +235,7 @@ void sns_msg_tf_plot_sample(
 void sns_msg_wt_tf_dump ( FILE *out, const struct sns_msg_wt_tf *msg ) {
     dump_header( out, &msg->header, "wt_tf" );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {
-        fprintf(out, "\t%d: (%f) [%f\t%f\t%f\t%f]\t[%f\t%f\t%f\t]\n",
+        fprintf(out, "\t%d: (%f) [%f\t%f\t%f\t%f\t%f\t%f\t%f\t]\n",
                 i,
                 msg->wt_tf[i].weight,
                 msg->wt_tf[i].tf.r.data[0],
