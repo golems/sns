@@ -49,11 +49,13 @@
 #include <getopt.h>
 #include <syslog.h>
 #include <dlfcn.h>
+#include <unistd.h>
 #include "sns.h"
 
 
 char *opt_channel = NULL;
 char *opt_type = NULL;
+double opt_freq = 0;
 
 static void posarg( char *arg, int i ) {
     if( 0 == i ) {
@@ -71,9 +73,12 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?hH" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "V?hHf:" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
+        case 'f':
+            opt_freq = atof(optarg);
+            break;
         case 'V':   /* version     */
             puts( "snsdump " PACKAGE_VERSION "\n"
                   "\n"
@@ -92,6 +97,7 @@ int main( int argc, char **argv ) {
                   "\n"
                   "Options:\n"
                   "  -v,                          Make output more verbose\n"
+                  "  -f FREQUENCY,                Sample at frequency\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
                   "\n"
@@ -140,7 +146,7 @@ int main( int argc, char **argv ) {
         ach_status_t r = sns_msg_local_get( &chan, &buf, &frame_size, NULL, ACH_O_WAIT );
         switch(r) {
         case ACH_MISSED_FRAME:
-            SNS_LOG( LOG_WARNING, "Missed frame\n");
+            if( ! (opt_freq>0) ) SNS_LOG( LOG_WARNING, "Missed frame\n");
         case ACH_OK:
             (fun)( stdout, buf );
             break;
@@ -152,6 +158,9 @@ int main( int argc, char **argv ) {
             exit(EXIT_SUCCESS);
         default:
             SNS_DIE(  "ach_get failed: %s\n", ach_result_to_string(r) );
+        }
+        if( opt_freq > 0 ) {
+            usleep( (useconds_t)(1e6 / opt_freq) );
         }
         aa_mem_region_local_release();
     }
