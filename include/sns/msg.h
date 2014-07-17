@@ -102,6 +102,7 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
 /* MACROS */
 /**********/
 
+
 // read an ACH message into buffer from the thread-local memory region
 enum ach_status
 sns_msg_local_get( ach_channel_t *chan, void **pbuf,
@@ -299,7 +300,10 @@ enum sns_motor_mode {
     SNS_MOTOR_MODE_HALT = 1,
     SNS_MOTOR_MODE_POS  = 2,
     SNS_MOTOR_MODE_VEL  = 3,
-    SNS_MOTOR_MODE_TORQ = 4
+    SNS_MOTOR_MODE_TORQ = 4,
+    SNS_MOTOR_MODE_CUR = 5,
+
+    SNS_MOTOR_MODE_POS_OFFSET = 16,
 };
 
 struct sns_msg_motor_ref {

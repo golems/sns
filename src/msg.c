@@ -316,6 +316,16 @@ struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n ) {
 
 void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     dump_header( out, &msg->header, "motor_ref" );
+    const char *mode = "?";
+    switch( msg->mode ) {
+    case SNS_MOTOR_MODE_HALT:       mode = "halt";             break;
+    case SNS_MOTOR_MODE_POS:        mode = "position";         break;
+    case SNS_MOTOR_MODE_VEL:        mode = "velocity";         break;
+    case SNS_MOTOR_MODE_TORQ:       mode = "torque";           break;
+    case SNS_MOTOR_MODE_CUR:        mode = "current";          break;
+    case SNS_MOTOR_MODE_POS_OFFSET: mode = "position offset";  break;
+    }
+    fprintf(out, "\t%s\n", mode );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {
         fprintf(out, "\t%f", msg->u[i] );
     }

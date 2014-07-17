@@ -56,6 +56,7 @@ char *opt_channel = NULL;
 enum sns_motor_mode opt_mode = SNS_MOTOR_MODE_POS;
 sns_real_t *opt_u = NULL;
 uint32_t n_opt_u = 0;
+int opt_degrees = 0;
 
 static void posarg( char *arg, int i ) {
     if( 0 == i ) {
@@ -71,11 +72,14 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?hHpd" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "V?pdHPD" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
         case 'p': opt_mode = SNS_MOTOR_MODE_POS; break;
         case 'd': opt_mode = SNS_MOTOR_MODE_VEL; break;
+        case 'H': opt_mode = SNS_MOTOR_MODE_HALT; break;
+        case 'P': opt_mode = SNS_MOTOR_MODE_POS_OFFSET; break;
+        case 'D': opt_degrees = 1; break;
         case 'V':   /* version     */
             puts( "snsref " PACKAGE_VERSION "\n"
                   "\n"
@@ -86,15 +90,15 @@ int main( int argc, char **argv ) {
                   "Written by Neil T. Dantam"
                 );
             exit(EXIT_SUCCESS);
-        case '?':   /* help     */
-        case 'h':
-        case 'H':
+        case '?':
             puts( "Usage: snsref [OPTIONS] channel x0 x1 ... xn\n"
                   "Send a motor referece command\n"
                   "\n"
                   "Options:\n"
                   "  -p                           Set positions (default)\n"
                   "  -d                           Set velocities\n"
+                  "  -H                           Halt\n"
+                  "  -P                           Set position offset\n"
                   "  -v,                          Make output more verbose\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
@@ -114,6 +118,7 @@ int main( int argc, char **argv ) {
 
     SNS_REQUIRE( opt_channel, "snsref: missing channel.\nTry `snsref -?' for more information\n" );
 
+
     /*-- Open channel -- */
     ach_channel_t chan;
     sns_chan_open( &chan, opt_channel, NULL );
@@ -123,10 +128,20 @@ int main( int argc, char **argv ) {
     }
 
     /*-- Construct Message --*/
+
     struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref*)alloca( sns_msg_motor_ref_size_n(n_opt_u) );
+    sns_msg_motor_ref_init( msg, n_opt_u);
+
     msg->mode = opt_mode;
-    msg->header.n = n_opt_u;
-    memcpy( msg->u, opt_u, n_opt_u*sizeof(msg->u[0]) );
+
+    if( opt_degrees ) {
+        for( size_t j = 0; j < n_opt_u; j ++ ) {
+            msg->u[j] = opt_u[j] * M_PI/180.0;
+        }
+    } else {
+        memcpy( msg->u, opt_u, n_opt_u*sizeof(msg->u[0]) );
+    }
+
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );
     sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
