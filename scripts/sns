@@ -54,6 +54,7 @@ run() {
     if test ! -d $SNS_RUNDIR; then  mkdir $SNS_RUNDIR; fi
     if test ! -d $SNS_TMPDIR; then  mkdir $SNS_TMPDIR; fi
 
+    echo Running \""$SNS_IDENT"\"...
     exec achcop $ARGS              \
         -P $SNS_RUNDIR/ppid        \
         -p $SNS_RUNDIR/pid         \
@@ -121,15 +122,6 @@ cmd_ls() {
     done
 }
 
-sns_chown() {
-    echo foo
-    chown -R $1 $SNS_RUNROOT $SNS_TMPROOT
-}
-
-sns_chgrp() {
-    chgrp -R $1 $SNS_RUNROOT $SNS_TMPROOT
-}
-
 case "$1" in
     start)
         start
@@ -157,12 +149,13 @@ case "$1" in
         start
         ;;
     chown)
-        shift
-        sns_chown $@
+        chown -R $2 $SNS_RUNROOT $SNS_TMPROOT
         ;;
     chgrp)
-        shift
-        sns_chgrp $@
+        chgrp -R $2 $SNS_RUNROOT $SNS_TMPROOT
+        ;;
+    cat)
+        cat  $SNS_TMPROOT/$2/out
         ;;
     help)
         cat <<EOF
@@ -175,6 +168,7 @@ Examples:
   sns restart                            Restart basic daemons
   sns run -d -r ident -- program -xyz    Run \`program -xyz' in the background,
                                          restarting on failure
+  sns cat ident                          Show output of program labeled "ident"
   sns kill ident                         Kill program labeled "ident"
   sns ls                                 Show which daemons are running
   sns chown gpb                          Set log/pid directory owner gpb
