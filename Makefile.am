@@ -77,3 +77,7 @@ snsrec_LDADD = libsns.la -lach -lamino -llapack -lblas
 bin_PROGRAMS += snsreced
 snsreced_SOURCES = src/snsreced.c
 snsreced_LDADD = libsns.la -lach -lamino -llapack -lblas
+
+install-exec-hook:
+	ln -s $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
+	      $(DESTDIR)$(bindir)/sns$(EXEEXT)
