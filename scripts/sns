@@ -121,11 +121,12 @@ cmd_ls() {
     done
 }
 
-chown() {
+sns_chown() {
+    echo foo
     chown -R $1 $SNS_RUNROOT $SNS_TMPROOT
 }
 
-chgrp() {
+sns_chgrp() {
     chgrp -R $1 $SNS_RUNROOT $SNS_TMPROOT
 }
 
@@ -157,11 +158,11 @@ case "$1" in
         ;;
     chown)
         shift
-        chown
+        sns_chown $@
         ;;
     chgrp)
         shift
-        chown
+        sns_chgrp $@
         ;;
     help)
         cat <<EOF
