@@ -121,6 +121,14 @@ cmd_ls() {
     done
 }
 
+chown() {
+    chown -R $1 $SNS_RUNROOT $SNS_TMPROOT
+}
+
+chgrp() {
+    chgrp -R $1 $SNS_RUNROOT $SNS_TMPROOT
+}
+
 case "$1" in
     start)
         start
@@ -146,6 +154,14 @@ case "$1" in
     force-reload)
         stop
         start
+        ;;
+    chown)
+        shift
+        chown
+        ;;
+    chgrp)
+        shift
+        chown
         ;;
     *)
         exit 1;
