@@ -154,6 +154,10 @@ case "$1" in
     chgrp)
         chgrp -R $2 $SNS_RUNROOT $SNS_TMPROOT
         ;;
+    gdb)
+        shift
+        gdb --core=$SNS_TMPROOT/$1/core $2
+        ;;
     cat)
         cat  $SNS_TMPROOT/$2/out
         ;;
@@ -168,6 +172,7 @@ Examples:
   sns restart                            Restart basic daemons
   sns run -d -r ident -- program -xyz    Run \`program -xyz' in the background,
                                          restarting on failure
+  sns gdb ident program                  Run gdb on core file from crashed program
   sns cat ident                          Show output of program labeled "ident"
   sns kill ident                         Kill program labeled "ident"
   sns ls                                 Show which daemons are running
@@ -175,7 +180,6 @@ Examples:
   sns chgrp gpb                          Set log/pid directory group gpb
   sns help                               Show this menu
 EOF
-
         exit 0
         ;;
     *)
