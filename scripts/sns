@@ -163,6 +163,27 @@ case "$1" in
         shift
         chown
         ;;
+    help)
+        cat <<EOF
+Usage: sns COMMAND [arguments]
+Driver script for SNS daemons
+
+Examples:
+  sns start                              Create directories and start basic daemons
+  sns stop                               Stop basic daemons
+  sns restart                            Restart basic daemons
+  sns run -d -r ident -- program -xyz    Run \`program -xyz' in the background,
+                                         restarting on failure
+  sns kill ident                         Kill program labeled "ident"
+  sns ls                                 Show which daemons are running
+  sns chown gpb                          Set log/pid directory owner gpb
+  sns chgrp gpb                          Set log/pid directory group gpb
+  sns help                               Show this menu
+EOF
+
+        exit 0
+        ;;
     *)
+        echo 'Invalid command.  Run `sns help` for usage.'
         exit 1;
 esac

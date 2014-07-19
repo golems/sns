@@ -1,1 +1,5 @@
-Goop code for robot message passing
+OVERVIEW
+========
+
+SNS is a package for managing real-time daemons that communicate via
+Ach.  It contains message defintions and helper scripts/programs.
