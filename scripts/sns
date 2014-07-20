@@ -11,6 +11,15 @@
 export SNS_RUNROOT=/var/run/sns
 export SNS_TMPROOT=/var/tmp/sns
 
+if test -d /run/shm; then
+    export SNS_ACHROOT=/run/shm
+elif test -d /dev/shm; then
+    export SNS_ACHROOT=/dev/shm
+else
+    echo Could not find directory of ach channels 1>&2
+    export SNS_ACHROOT=/dev/null
+fi
+
 run() {
     ARGS=""
     SNS_IDENT=""
@@ -122,6 +131,13 @@ cmd_ls() {
     done
 }
 
+sns_files() {
+    echo  $SNS_RUNROOT
+    echo $SNS_TMPROOT
+    find $SNS_ACHROOT -name 'achshm-*'
+}
+
+
 case "$1" in
     start)
         start
@@ -149,10 +165,10 @@ case "$1" in
         start
         ;;
     chown)
-        chown -R $2 $SNS_RUNROOT $SNS_TMPROOT
+        chown -Rv $2 `sns_files`
         ;;
     chgrp)
-        chgrp -R $2 $SNS_RUNROOT $SNS_TMPROOT
+        chgrp -Rv $2 `sns_files`
         ;;
     gdb)
         shift
@@ -183,6 +199,6 @@ EOF
         exit 0
         ;;
     *)
-        echo 'Invalid command.  Run `sns help` for usage.'
+        echo 'Invalid command.  Run `sns help` for usage.' 1>&2
         exit 1;
 esac
