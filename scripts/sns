@@ -72,14 +72,23 @@ run() {
         -- $@
 }
 
+sudo_mkdir() {
+    dir=$1
+    if test ! -d $dir; then
+        if test 0 = $UID; then
+            mkdir -m 1777 $dir
+        else
+            echo "Sudo-ing to create directory"
+            sudo mkdir $dir
+            echo "Sudo-ing to chown directory"
+            sudo chown $USER:$GID $dir
+        fi
+    fi
+}
 
 start() {
-    if test ! -d $SNS_RUNROOT; then
-        mkdir -m 1777 $SNS_RUNROOT
-    fi
-    if test ! -d $SNS_TMPROOT; then
-        mkdir -m 1777 $SNS_TMPROOT
-    fi
+    sudo_mkdir $SNS_RUNROOT
+    sudo_mkdir $SNS_TMPROOT
 
     ach mk -o 666 sns-log
 
