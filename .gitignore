@@ -56,3 +56,12 @@ Makefile.in
 /core
 /snsrec
 /snsreced
+/debian/tmp
+/debian/libsns0
+/debian/libsns-dev
+/debian/sns-utils
+/debian/docs
+/debian/files
+/debian/*.log
+/debian/*.debhelper
+/debian/*.substvars
