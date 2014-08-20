@@ -302,6 +302,7 @@ enum sns_motor_mode {
     SNS_MOTOR_MODE_VEL  = 3,
     SNS_MOTOR_MODE_TORQ = 4,
     SNS_MOTOR_MODE_CUR = 5,
+    SNS_MOTOR_MODE_RESET = 6,
 
     SNS_MOTOR_MODE_POS_OFFSET = 16,
 };

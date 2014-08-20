@@ -72,11 +72,12 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?pdHPD" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "V?pdRHPD" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
         case 'p': opt_mode = SNS_MOTOR_MODE_POS; break;
         case 'd': opt_mode = SNS_MOTOR_MODE_VEL; break;
+        case 'R': opt_mode = SNS_MOTOR_MODE_RESET; break;
         case 'H': opt_mode = SNS_MOTOR_MODE_HALT; break;
         case 'P': opt_mode = SNS_MOTOR_MODE_POS_OFFSET; break;
         case 'D': opt_degrees = 1; break;

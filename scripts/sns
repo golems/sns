@@ -75,7 +75,7 @@ run() {
 sudo_mkdir() {
     dir=$1
     if test ! -d $dir; then
-        if test 0 = $UID; then
+        if test x0 = "x$UID"; then
             mkdir -m 1777 $dir
         else
             echo "Sudo-ing to create directory"
