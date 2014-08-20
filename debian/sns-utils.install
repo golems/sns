@@ -1,0 +1,5 @@
+etc/init.d/sns
+snslogd
+snsplot
+snsrec
+snsref

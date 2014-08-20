@@ -13,36 +13,43 @@ init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
 libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c
-libsns_la_LIBADD = -lach
+libsns_la_LIBADD = -lach -lamino
 
 ## PLUGINS
 lib_LTLIBRARIES += libsns_msg_joystick.la
 libsns_msg_joystick_la_SOURCES = src/msg_plugin.c
 libsns_msg_joystick_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_joystick
+libsns_msg_joystick_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_motor_ref.la
 libsns_msg_motor_ref_la_SOURCES = src/msg_plugin.c
 libsns_msg_motor_ref_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_ref
+libsns_msg_motor_ref_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_motor_state.la
 libsns_msg_motor_state_la_SOURCES = src/msg_plugin.c
 libsns_msg_motor_state_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_state
+libsns_msg_motor_state_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_vector.la
 libsns_msg_vector_la_SOURCES = src/msg_plugin.c
 libsns_msg_vector_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_vector
+libsns_msg_vector_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_tf.la
 libsns_msg_tf_la_SOURCES = src/msg_plugin.c
 libsns_msg_tf_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tf
+libsns_msg_tf_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_wt_tf.la
 libsns_msg_wt_tf_la_SOURCES = src/msg_plugin.c
 libsns_msg_wt_tf_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_wt_tf
+libsns_msg_wt_tf_la_LIBADD = libsns.la
 
 lib_LTLIBRARIES += libsns_msg_tf_dx.la
 libsns_msg_tf_dx_la_SOURCES = src/msg_plugin.c
 libsns_msg_tf_dx_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tf_dx
+libsns_msg_tf_dx_la_LIBADD = libsns.la
 
 
 bin_PROGRAMS = snsdump snsplot sns-trylock

@@ -1,0 +1,5 @@
+#!/bin/sh -e
+
+update-rc.d sns remove
+
+#DEBHELPER#
