@@ -354,8 +354,8 @@ struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n );
 /* PLUGINS */
 /***********/
 
-typedef void (*sns_msg_dump_fun)( FILE *, void* );
-typedef void (*sns_msg_plot_sample_fun)( const void *, double **, char ***, size_t *);
+typedef void sns_msg_dump_fun( FILE *, void* );
+typedef void sns_msg_plot_sample_fun( const void *, double **, char ***, size_t *);
 
 // TODO: message validation
 
