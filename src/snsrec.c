@@ -57,7 +57,7 @@ typedef struct {
     ach_channel_t chan;
     FILE *out;
     size_t n;
-    sns_msg_plot_sample_fun *fun;
+    sns_msg_plot_sample_fun fun;
 } cx_t;
 
 /** Initialize the daemon */
