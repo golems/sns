@@ -5,14 +5,15 @@ include_HEADERS = include/sns.h
 pkginclude_HEADERS =                              \
 	include/sns/msg.h                         \
 	include/sns/util.h                        \
-	include/sns/daemon.h
+	include/sns/daemon.h			   \
+	include/sns/path.h
 
 
 init_ddir = $(sysconfdir)/init.d
 init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
-libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c
+libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c
 libsns_la_LIBADD = -lach -lamino
 
 ## PLUGINS

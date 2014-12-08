@@ -60,5 +60,6 @@ typedef double sns_real_t;
 #include "sns/util.h"
 #include "sns/msg.h"
 #include "sns/daemon.h"
+#include "sns/path.h"
 
 #endif //SNS_H
