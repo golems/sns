@@ -126,7 +126,7 @@ int main( int argc, char **argv ) {
     SNS_LOG( LOG_INFO, "verbosity: %d\n", sns_cx.verbosity );
 
     /*-- Obtain Dump Function -- */
-    sns_msg_dump_fun *fun =  (sns_msg_dump_fun*) sns_msg_plugin_symbol( opt_type, "sns_msg_dump" );
+    sns_msg_dump_fun* fun =  (sns_msg_dump_fun*) sns_msg_plugin_symbol( opt_type, "sns_msg_dump" );
     SNS_REQUIRE( fun, "Couldn't link dump function symbol'\n");
 
     /*-- Open channel -- */

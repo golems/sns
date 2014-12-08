@@ -69,7 +69,7 @@ typedef struct {
     ach_channel_t chan_in;
     gnuplot_live_t plot;
     size_t n_msg;
-    sns_msg_plot_sample_fun *fun;
+    sns_msg_plot_sample_fun* fun;
 } cx_t;
 
 
