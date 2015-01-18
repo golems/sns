@@ -36,7 +36,6 @@
 #include <sns.h>
 #include <getopt.h>
 
-struct ach_channel g_channel_out;
 
 struct mplex_input {
     struct ach_channel channel;
@@ -45,19 +44,25 @@ struct mplex_input {
     size_t max;
     size_t frame_size;
     _Bool updated;
-} ;
+};
 
-int do_poll( struct mplex_input *M, struct pollfd *pfd, size_t n );
-void get_msg( struct mplex_input *m );
-void do_output( struct mplex_input *M, size_t n, struct ach_channel *out  );
+struct cx {
+    struct mplex_input *in;
+    struct ach_channel out;
+    size_t n;
+};
 
-static const char *opt_chan_out = NULL;
+enum ach_status handle( void *cx, struct ach_channel *channel );
+enum ach_status periodic( void *cx );
 
 int main(int argc, char **argv)
 {
     sns_init();
     struct aa_mem_rlist *names_list = aa_mem_rlist_alloc( aa_mem_region_local_get() );
-    size_t g_n_channels = 0;
+    struct cx cx = {0};
+
+    const char *opt_chan_out = NULL;
+
     /* Parse Options */
     {
         int c = 0;
@@ -87,91 +92,68 @@ int main(int argc, char **argv)
                 exit(EXIT_SUCCESS);
             default:
                 aa_mem_rlist_push_ptr( names_list, optarg );
-                g_n_channels++;
+                cx.n++;
 
                 break;
             }
         }
         while( optind < argc ) {
             aa_mem_rlist_push_ptr( names_list, argv[optind++] );
-            g_n_channels++;
+            cx.n++;
         }
     }
 
-
-    SNS_REQUIRE(g_n_channels, "no input channels given\n");
+    SNS_REQUIRE(cx.n, "no input channels given\n");
     SNS_REQUIRE( opt_chan_out, "Need output channel");
-    sns_chan_open( &g_channel_out, opt_chan_out , NULL );
 
-    struct mplex_input *g_mplex_input = AA_NEW_AR(struct mplex_input, g_n_channels);
-    struct pollfd *g_pollfd = AA_NEW_AR(struct pollfd, g_n_channels);
+    sns_chan_open( &cx.out, opt_chan_out , NULL );
+    cx.in = AA_NEW_AR(struct mplex_input, cx.n);
+
+    struct ach_evhandler *handlers = AA_NEW_AR( struct ach_evhandler, cx.n);
 
     // Initialize arrays
-    for( size_t j = g_n_channels; j; j--) {
+    for( size_t j = cx.n; j; j--) {
         size_t i = j-1;
-        struct mplex_input *m = g_mplex_input + i;
 
-        m->name = (const char*)aa_mem_rlist_pop(names_list);
+        cx.in[i].name = (const char*)aa_mem_rlist_pop(names_list);
 
         // open channel
-        sns_chan_open( &m->channel, m->name, NULL );
+        sns_chan_open( &cx.in[i].channel, cx.in[i].name, NULL );
 
-        enum ach_status r;
+        // init handler
+        handlers[i].channel = &cx.in[i].channel;
+        handlers[i].context = cx.in+i;
+        handlers[i].handler = handle;
 
-        // check mapping
-        enum ach_map map;
-        r = ach_channel_mapping(&m->channel, &map );
-        SNS_REQUIRE( ACH_OK == r, "Couldn't get channel mapping: %s", ach_result_to_string(r) );
-        SNS_REQUIRE( ACH_MAP_KERNEL == map, "Not a kernel channel: %s", m->name );
-
-        // init poll struct
-        r = ach_channel_fd(&m->channel, &g_pollfd[i].fd);
-        SNS_REQUIRE(ACH_OK==r, "Couldn't get channel fd");
-        g_pollfd[i].events=POLLIN;
-
-        SNS_LOG(LOG_DEBUG, "Initialized input channel %s\n", m->name );
+        SNS_LOG(LOG_DEBUG, "Initialized input channel %s\n", cx.in[i].name );
     }
 
     // Run Loop
     while( !sns_cx.shutdown) {
-        if( 0 < do_poll(g_mplex_input, g_pollfd, g_n_channels) ) {
-            do_output(g_mplex_input, g_n_channels, &g_channel_out);
-        }
+        errno = 0;
+        struct timespec period = {1,0};
+        enum ach_status r = ach_evhandle( handlers, cx.n,
+                                          &period, periodic, &cx,
+                                          ACH_EV_O_PERIODIC_INPUT );
+        if(sns_cx.shutdown) break;
+        SNS_REQUIRE( ACH_OK == r,
+                     "Could not handle events: %s, %s\n",
+                     ach_result_to_string(r),
+                     strerror(errno) );
     }
 
     return 0;
 }
 
-// TODO: wrap up poll() in an event-handling library call
-int do_poll( struct mplex_input *M, struct pollfd *pfd, size_t n )
+enum ach_status handle( void *cx, struct ach_channel *channel )
 {
-    // poll channels
-    int r_poll = poll(pfd, n, -1);
-    if( r_poll < 0 ) {
-        if( EINTR == errno ) return r_poll;
-        else SNS_DIE( "Poll failed: %s", strerror(errno) );
-    }
+    struct mplex_input *m = (struct mplex_input*)cx;
+    SNS_LOG(LOG_DEBUG, "Event on channel %s\n", m->name );
 
-    if( r_poll > 0 ) {
-        // get the input
-        for( size_t i = 0;  i < n; i++ ) {
-            M[i].updated = 0;
-            if( pfd[i].revents & POLLIN ) {
-                // data on channel i
-                SNS_LOG(LOG_DEBUG+1, "Data on channel %s\n", M[i].name );
-                get_msg(M+i);
-            }
-        }
-    }
-    return r_poll;
-}
-
-void get_msg( struct mplex_input *m )
-{
     if( ! m->msg ) {
         // lazily allocate message
         void *msg;
-        enum ach_status r = sns_msg_local_get( &m->channel, &msg,
+        enum ach_status r = sns_msg_local_get( channel, &msg,
                                                &m->frame_size, NULL, ACH_O_LAST );
         SNS_REQUIRE( (ACH_OK == r || ACH_MISSED_FRAME == r),
                      "Could not get ach message on %s: %s\n",
@@ -187,7 +169,7 @@ void get_msg( struct mplex_input *m )
         m->updated = 1;
         aa_mem_region_local_pop( msg );
     } else {
-        enum ach_status r = ach_get( &m->channel, m->msg, m->max,
+        enum ach_status r = ach_get( channel, m->msg, m->max,
                                      &m->frame_size, NULL, ACH_O_LAST );
         switch(r) {
         case ACH_OK:
@@ -204,23 +186,61 @@ void get_msg( struct mplex_input *m )
                     m->name, ach_result_to_string(r) );
         }
     }
+
+    return ACH_OK;
 }
 
-void do_output( struct mplex_input *M, size_t n, struct ach_channel *out  )
+
+enum ach_status periodic( void *_cx )
 {
+    SNS_LOG(LOG_DEBUG, "periodic handler\n");
+
+    struct cx *cx = (struct cx*)_cx;
+
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );
-    for( size_t i = 0; i < n; i++ ) {
-        struct mplex_input *m = M + i;
+    for( size_t i = 0; i < cx->n; i++ ) {
+        struct mplex_input *m = cx->in + i;
         if( m->msg && ! sns_msg_is_expired(m->msg, &now) ) {
             // found the active message
             if( m->updated ) {
                 SNS_LOG(LOG_DEBUG+1, "Sending output from %s\n", m->name );
-                enum ach_status r = ach_put( out, m->msg, m->frame_size );
+                enum ach_status r = ach_put( &cx->out, m->msg, m->frame_size );
                 SNS_REQUIRE( ACH_OK == r, "Could not put output message: %s\n",
                              ach_result_to_string(r) );
             } // else nothing new to send
             break;
         }
     }
+
+    /* Mark messages as un-updated */
+    for( size_t i = 0; i < cx->n; i++ ) {
+        cx->in[i].updated = 0;
+    }
+
+    return ACH_OK;
 }
+
+
+/* int do_poll( struct mplex_input *M, struct pollfd *pfd, size_t n ) */
+/* { */
+/*     // poll channels */
+/*     int r_poll = poll(pfd, n, -1); */
+/*     if( r_poll < 0 ) { */
+/*         if( EINTR == errno ) return r_poll; */
+/*         else SNS_DIE( "Poll failed: %s", strerror(errno) ); */
+/*     } */
+
+/*     if( r_poll > 0 ) { */
+/*         // get the input */
+/*         for( size_t i = 0;  i < n; i++ ) { */
+/*             M[i].updated = 0; */
+/*             if( pfd[i].revents & POLLIN ) { */
+/*                 // data on channel i */
+/*                 SNS_LOG(LOG_DEBUG+1, "Data on channel %s\n", M[i].name ); */
+/*                 get_msg(M+i); */
+/*             } */
+/*         } */
+/*     } */
+/*     return r_poll; */
+/* } */
