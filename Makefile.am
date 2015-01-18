@@ -69,7 +69,6 @@ bin_PROGRAMS += snslogd
 snslogd_SOURCES = src/snslogd.c
 snslogd_LDADD = libsns.la -lach -lamino -llapack -lblas
 
-
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
 snslog_LDADD = libsns.la -lach -lamino -llapack -lblas
@@ -85,6 +84,10 @@ snsrec_LDADD = libsns.la -lach -lamino -llapack -lblas
 bin_PROGRAMS += snsreced
 snsreced_SOURCES = src/snsreced.c
 snsreced_LDADD = libsns.la -lach -lamino -llapack -lblas
+
+bin_PROGRAMS += snsmplex
+snsmplex_SOURCES = src/bin/mplex.c
+snsmplex_LDADD = libsns.la -lach -lamino -llapack -lblas
 
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \

@@ -65,3 +65,5 @@ Makefile.in
 /debian/*.log
 /debian/*.debhelper
 /debian/*.substvars
+/snsmplex
+/compile
