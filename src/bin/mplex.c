@@ -62,16 +62,20 @@ int main(int argc, char **argv)
     struct cx cx = {0};
 
     const char *opt_chan_out = NULL;
+    long opt_period_ns = (long)1e6; /* 1 ms */
 
     /* Parse Options */
     {
         int c = 0;
         opterr = 0;
-        while( (c = getopt( argc, argv, "c:o:?V" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "c:o:f:?V" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES
             case 'o':
                 opt_chan_out = optarg;
+                break;
+            case 'f':
+                opt_period_ns = (long) (1e9 / atof(optarg));
                 break;
             case '?':   /* help     */
             case 'h':
@@ -81,6 +85,7 @@ int main(int argc, char **argv)
                       "\n"
                       "Options:\n"
                       "  -o,                       message output channel\n"
+                      "  -f,                       frequency (Hz)\n"
                       "  -V,                       Print program version\n"
                       "  -?,                       display this help and exit\n"
                       "\n"
@@ -127,11 +132,14 @@ int main(int argc, char **argv)
 
         SNS_LOG(LOG_DEBUG, "Initialized input channel %s\n", cx.in[i].name );
     }
+    struct timespec period = {(time_t)(opt_period_ns / (time_t)1e9),
+                              (opt_period_ns % (long)1e9)};
 
+    SNS_LOG( LOG_DEBUG, "Period: %09lu.%08ld\n",
+             period.tv_sec, period.tv_nsec );
     // Run Loop
     while( !sns_cx.shutdown) {
         errno = 0;
-        struct timespec period = {1,0};
         enum ach_status r = ach_evhandle( handlers, cx.n,
                                           &period, periodic, &cx,
                                           ACH_EV_O_PERIODIC_INPUT );
@@ -155,6 +163,7 @@ enum ach_status handle( void *cx, struct ach_channel *channel )
         void *msg;
         enum ach_status r = sns_msg_local_get( channel, &msg,
                                                &m->frame_size, NULL, ACH_O_LAST );
+        if( ACH_STALE_FRAMES == r ) return r;
         SNS_REQUIRE( (ACH_OK == r || ACH_MISSED_FRAME == r),
                      "Could not get ach message on %s: %s\n",
                      m->name, ach_result_to_string(r) );
@@ -177,6 +186,7 @@ enum ach_status handle( void *cx, struct ach_channel *channel )
             // got it
             m->updated = 1;
             break;
+        case ACH_STALE_FRAMES: return r;
         case ACH_OVERFLOW:
             // TODO: maybe handle this?
             SNS_LOG(LOG_ERR, "Message overflow on channel %s\n", m->name);
