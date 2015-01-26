@@ -72,6 +72,7 @@ typedef struct {
     timer_t timer;
     js_t *js;
     struct sns_msg_joystick *msg;
+    clockid_t clock;
 } cx_t;
 
 
@@ -274,13 +275,15 @@ static int create_timer(cx_t *cx) {
 static void jach_run( cx_t *cx ) {
     (void)cx;
     // main loop
+    int64_t period_ns = cx->opt_period.tv_sec * (int64_t)1e9 + cx->opt_period.tv_nsec;
     while (!sns_cx.shutdown) {
         int status = jach_read_to_msg( cx );
         if( !status || (EINTR == errno) ) {
             // ok, send the message
-            //struct timespec now = aa_tm_now();
-            //somatic_metadata_set_time_timespec( msg->meta, now );
-            //SOMATIC_D_PUT(somatic__joystick, &cx->d, &cx->chan, msg );
+            struct timespec now;
+            clock_gettime( cx->clock, &now );
+            sns_msg_set_time(&cx->msg->header, &now, 2*period_ns);
+            cx->msg->header.seq++;
             ach_status_t r = ach_put( &cx->chan, cx->msg,
                                       sns_msg_joystick_size( cx->msg ) );
             SNS_CHECK( ACH_OK == r, LOG_EMERG, 0,
@@ -338,6 +341,7 @@ int main( int argc, char **argv ) {
 
     // open channel
     sns_chan_open( &cx.chan, cx.opt_chan_name, NULL );
+    cx.clock = ACH_DEFAULT_CLOCK;
 
     //Somatic__Joystick *msg = somatic_joystick_alloc(cx.opt_axis_cnt, cx.opt_button_cnt);
 
