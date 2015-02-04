@@ -87,7 +87,7 @@ snsreced_LDADD = libsns.la -lach -lamino -llapack -lblas
 
 bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
-snsmplex_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsmplex_LDADD = libsns.la -lach -lamino -llapack -lblas -lach-experimental
 
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
