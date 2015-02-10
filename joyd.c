@@ -340,7 +340,12 @@ int main( int argc, char **argv ) {
     }
 
     // open channel
-    sns_chan_open( &cx.chan, cx.opt_chan_name, NULL );
+    {
+        ach_attr_t attr;
+        ach_attr_init(&attr);
+        ach_attr_set_lock_source( &attr, 1 );
+        sns_chan_open( &cx.chan, cx.opt_chan_name, &attr );
+    }
     cx.clock = ACH_DEFAULT_CLOCK;
 
     //Somatic__Joystick *msg = somatic_joystick_alloc(cx.opt_axis_cnt, cx.opt_button_cnt);
