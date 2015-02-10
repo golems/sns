@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.65])
-AC_INIT([sns], [1.1.0], [ntd@gatech.edu])
-AM_INIT_AUTOMAKE([-Wall])
+AC_INIT([sns], [1.1.0], [ntd@rice.edu])
+AM_INIT_AUTOMAKE([-Wall subdir-objects])
 AC_CONFIG_SRCDIR([include/sns.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -12,6 +12,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
 AC_PROG_CC_C99
+AM_PROG_AR
 AC_PROG_LIBTOOL
 
 AC_C_RESTRICT

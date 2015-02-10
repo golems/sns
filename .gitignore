@@ -1,4 +1,4 @@
-/.deps
+.deps
 /CMakeCache.txt
 /cmake_install.cmake
 /CMakeFiles
@@ -67,3 +67,5 @@ Makefile.in
 /debian/*.substvars
 /snsmplex
 /compile
+.dirstamp
+/ar-lib
