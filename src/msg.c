@@ -55,15 +55,14 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf, size_t *frame_size,
                    int options ) {
     aa_mem_region_t *reg = aa_mem_region_local_get();
     ach_status_t r;
-    do {
+    for(;;) {
         size_t size = aa_mem_region_freesize(reg);
         r = ach_get( chan, aa_mem_region_ptr(reg), size, frame_size, abstime, options );
-        if( ACH_OVERFLOW == r ) {
-            aa_mem_region_tmpalloc( reg, *frame_size );
-        }
-    } while (ACH_OVERFLOW == r );
+        if( ACH_OVERFLOW == r ) aa_mem_region_tmpalloc( reg, *frame_size );
+        else break;
+    }
 
-    if( ACH_OK == r || ACH_MISSED_FRAME == r )
+    if( ach_status_match(r, ACH_MASK_OK | ACH_MASK_MISSED_FRAME) )
         *pbuf = aa_mem_region_alloc( reg, *frame_size );
     return r;
 }
@@ -324,6 +323,7 @@ void sns_msg_motor_ref_dump ( FILE *out, const struct sns_msg_motor_ref *msg ) {
     case SNS_MOTOR_MODE_TORQ:       mode = "torque";           break;
     case SNS_MOTOR_MODE_CUR:        mode = "current";          break;
     case SNS_MOTOR_MODE_POS_OFFSET: mode = "position offset";  break;
+    case SNS_MOTOR_MODE_RESET:      mode = "reset";  break;
     }
     fprintf(out, "\t%s\n", mode );
     for( uint32_t i = 0; i < msg->header.n; i ++ ) {

@@ -51,7 +51,10 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include "sns.h"
+#include "sns/event.h"
 
+static enum ach_status
+handler ( void *context, void *msg, size_t msg_size );
 
 char *opt_channel = NULL;
 char *opt_type = NULL;
@@ -132,38 +135,30 @@ int main( int argc, char **argv ) {
     /*-- Open channel -- */
     ach_channel_t chan;
     sns_chan_open( &chan, opt_channel, NULL );
-    {
-        ach_channel_t *chans[] = {&chan, NULL};
-        sns_sigcancel( chans, sns_sig_term_default );
-    }
 
-    /*-- Dump -- */
-    sns_start();
-    while(1) {
-        void *buf;
-        size_t frame_size;
-        // get the frame
-        ach_status_t r = sns_msg_local_get( &chan, &buf, &frame_size, NULL, ACH_O_WAIT );
-        switch(r) {
-        case ACH_MISSED_FRAME:
-            if( ! (opt_freq>0) ) SNS_LOG( LOG_WARNING, "Missed frame\n");
-        case ACH_OK:
-            (fun)( stdout, buf );
-            break;
-        case ACH_TIMEOUT:
-            SNS_LOG( LOG_DEBUG+1, "timeout\n");
-            break;
-        case ACH_CANCELED:
-            SNS_LOG( LOG_DEBUG, "Cancel received\n");
-            exit(EXIT_SUCCESS);
-        default:
-            SNS_DIE(  "ach_get failed: %s\n", ach_result_to_string(r) );
+    /* setup handler */
+    struct sns_evhandler handlers[1] = {
+        {.channel = &chan,
+         .context = fun,
+         .ach_options = ACH_O_FIRST,
+         .handler = handler
         }
-        if( opt_freq > 0 ) {
-            usleep( (useconds_t)(1e6 / opt_freq) );
-        }
-        aa_mem_region_local_release();
-    }
+    };
 
-    return 0;
+    /* run */
+    enum ach_status r;
+    r = sns_evhandle( handlers, sizeof( handlers ) / sizeof(handlers[0]),
+                      NULL, NULL, NULL,
+                      sns_sig_term_default, 0 );
+
+    return r;
+}
+
+static enum ach_status
+handler ( void *context, void *msg, size_t msg_size )
+{
+    (void)msg_size;
+    sns_msg_dump_fun* fun  = (sns_msg_dump_fun*) context;
+    (fun)(stdout, msg);
+    return ACH_OK;
 }
