@@ -6,6 +6,7 @@ pkginclude_HEADERS =                              \
 	include/sns/msg.h                         \
 	include/sns/util.h                        \
 	include/sns/daemon.h			   \
+	include/sns/event.h			   \
 	include/sns/path.h
 
 
