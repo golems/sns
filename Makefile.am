@@ -93,3 +93,5 @@ snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino -llapack -lblas
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
 	       $(DESTDIR)$(bindir)/sns$(EXEEXT)
+
+include doxygen.am

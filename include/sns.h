@@ -41,11 +41,31 @@
 #ifndef SNS_H
 #define SNS_H
 
+/**
+ * @file  sns.h
+ * @brief top-level include file for sns
+ *
+ * @author Neil T. Dantam
+ */
+
+/**
+ * Max length for hostnames in SNS messages
+ */
 #define SNS_HOSTNAME_LEN 8
+
+/**
+ * Max length for daemon identifier in SNS messages
+ */
 #define SNS_IDENT_LEN 8
 
+/**
+ * Max length for daemon backtraces
+ */
 #define SNS_BACKTRACE_LEN 32
 
+/**
+ * Type to use for floating point values.
+ */
 typedef double sns_real_t;
 
 #include <stdint.h>

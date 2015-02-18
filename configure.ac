@@ -76,22 +76,22 @@ m4_ifdef([APPEND_FLAG],
           APPEND_FLAG([-Wc++-compat])])
 
 dnl # Doxygen
-dnl m4_ifdef([DX_INIT_DOXYGEN],
-dnl          [DX_HTML_FEATURE(ON)
-dnl           DX_PDF_FEATURE(OFF)
-dnl           DX_PS_FEATURE(OFF)
-dnl           DX_INIT_DOXYGEN(ach)],
-dnl          [AM_CONDITIONAL([DX_COND_doc],   false)
-dnl           AM_CONDITIONAL([DX_COND_html],  false)
-dnl           AM_CONDITIONAL([DX_COND_chm],   false)
-dnl           AM_CONDITIONAL([DX_COND_chi],   false)
-dnl           AM_CONDITIONAL([DX_COND_rtf],   false)
-dnl           AM_CONDITIONAL([DX_COND_xml],   false)
-dnl           AM_CONDITIONAL([DX_COND_ps],    false)
-dnl           AM_CONDITIONAL([DX_COND_pdf],   false)
-dnl           AM_CONDITIONAL([DX_COND_latex], false)
-dnl           AM_CONDITIONAL([DX_COND_man],   false)
-dnl          ])
+m4_ifdef([DX_INIT_DOXYGEN],
+         [DX_HTML_FEATURE(ON)
+          DX_PDF_FEATURE(OFF)
+          DX_PS_FEATURE(OFF)
+          DX_INIT_DOXYGEN(ach)],
+         [AM_CONDITIONAL([DX_COND_doc],   false)
+          AM_CONDITIONAL([DX_COND_html],  false)
+          AM_CONDITIONAL([DX_COND_chm],   false)
+          AM_CONDITIONAL([DX_COND_chi],   false)
+          AM_CONDITIONAL([DX_COND_rtf],   false)
+          AM_CONDITIONAL([DX_COND_xml],   false)
+          AM_CONDITIONAL([DX_COND_ps],    false)
+          AM_CONDITIONAL([DX_COND_pdf],   false)
+          AM_CONDITIONAL([DX_COND_latex], false)
+          AM_CONDITIONAL([DX_COND_man],   false)
+         ])
 
 dnl # Check for programs to make documentation
 dnl AC_CHECK_PROGS([HELP2MAN], [help2man])

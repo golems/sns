@@ -69,3 +69,5 @@ Makefile.in
 /compile
 .dirstamp
 /ar-lib
+/doc/man
+/doc/html

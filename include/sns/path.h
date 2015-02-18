@@ -20,9 +20,12 @@ extern "C" {
 /**
  * @struct sns_msg_path_dense
  * @brief Struct that stores a densely sampled path
- * @todo 
+ * @todo
  */
 struct sns_msg_path_dense {
+    /**
+     * The message header
+     */
   struct sns_msg_header header;
   uint32_t n_dof;   /**< Degrees of Freedom (e.g. 7 for LWA) */
   uint32_t n_steps; /**< Number of points in the path */
@@ -43,7 +46,7 @@ static inline size_t sns_msg_path_dense_size_tn( size_t _n_steps,
 
 /**
  * @function sns_msg_path_dense_size
- * @brief Returns the size of the message according to its n_steps and n_dof 
+ * @brief Returns the size of the message according to its n_steps and n_dof
  */
 static inline size_t sns_msg_path_dense_size( const struct sns_msg_path_dense * _msg ) {
   return sns_msg_path_dense_size_tn( _msg->n_steps, _msg->n_dof );
@@ -51,11 +54,17 @@ static inline size_t sns_msg_path_dense_size( const struct sns_msg_path_dense * 
 
 
   // DECLARATIONS
-  struct sns_msg_path_dense *sns_msg_path_dense_alloc( uint32_t _n_steps,
-						     uint32_t _n_dof );
-  void sns_path_dense_dump( FILE* _out,
-			    const struct sns_msg_path_dense *_msg );
-  
+/**
+ * Allocate message
+ */
+struct sns_msg_path_dense *sns_msg_path_dense_alloc( uint32_t _n_steps,
+                                                     uint32_t _n_dof );
+/**
+ * print message
+ */
+void sns_path_dense_dump( FILE* _out,
+                          const struct sns_msg_path_dense *_msg );
+
 
 #ifdef __cplusplus
 }

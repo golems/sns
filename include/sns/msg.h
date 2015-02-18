@@ -45,17 +45,46 @@
 extern "C" {
 #endif
 
+/**
+ * @file msg.h
+ *
+ * @brief Message definitions for SNS daemons
+ *
+ * This file declares message types and convenience functions.
+ * Message are contiguous C structs.  Variable length date is
+ * implented using a flexible array member as the last field in the
+ * struct.  Each message contains a metadata header (which includes
+ * the length of the flexible array).
+ *
+ * @author Neil T. Dantam
+ */
 
 /***************/
 /* Basic Types */
 /***************/
 
+/**
+ * Type to use for SE(3) frames
+ */
 typedef struct aa_tf_qv sns_tf;
+
+/**
+ * Type to use for transformation frames and velocities
+ */
 typedef struct aa_tf_qv_dx sns_tf_dx;
 
-/** Weighted transform type */
+/**
+ * Weighted SE(3) transform type
+ */
 typedef struct {
+    /**
+     * The transform
+     */
     sns_tf tf;
+
+    /**
+     * A weight for the tranformation
+     */
     double weight;
 } sns_wt_tf;
 
@@ -63,7 +92,11 @@ typedef struct {
 /* HEADERS */
 /***********/
 
-/* Each message begins with a header */
+/**
+ * Metadata header for SNS messages
+ *
+ * Each message has this header has its first member.
+ */
 typedef struct sns_msg_header {
     int64_t sec;              ///< Time message sent, seconds portion
     int64_t dur_nsec;         ///< Valid message duration, nanoseconds
@@ -71,16 +104,46 @@ typedef struct sns_msg_header {
     uint32_t n;               ///< Element count for variable-sized messages
     int64_t from_pid;         ///< Sending PID
     uint64_t seq;             ///< Sequence number
-    /// Sending Host
+    /**
+     * Sending Host
+     */
     char from_host[SNS_HOSTNAME_LEN];
-    /// Sending process name
+    /**
+     * Sending process name
+     */
     char ident[SNS_IDENT_LEN];
 } sns_msg_header_t;
 
+/**
+ * Check if the message has expired.
+ *
+ * Message is expired if the message timestamp plus message duration
+ * is after current time.
+ *
+ * @param[in] msg the message to check
+ * @param[in] now the current time
+ *
+ * @return true when message is expired.  False when message is not
+ * expired.
+ */
 int sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec *now );
 
+/**
+ * Set the time in the message
+ *
+ * @param[out] msg           the message in which the time is set
+ * @param[in]  now           the message timestamp
+ * @param[in]  duration_ns   the message duration in nanoseconds
+ */
 void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, int64_t duration_ns );
 
+/**
+ * Extract the message timestamp as a timespec
+ *
+ * @param[in] msg An SNS message
+ *
+ * @return the timestamp of msg
+ */
 static inline struct timespec
 sns_msg_get_time( struct sns_msg_header *msg )
 {
@@ -90,9 +153,24 @@ sns_msg_get_time( struct sns_msg_header *msg )
     return ts;
 }
 
+/**
+ * Set message header metadata
+ *
+ * @post the members of msg are initialized
+ *
+ * @param[out] msg An SNS message
+ */
 void sns_msg_header_fill ( struct sns_msg_header *msg );
 
 /* True if frame_size is too small */
+
+/**
+ * Check if a message is fully received
+ *
+ * @param[in] type       the type of the message
+ * @param[in] pointer    the message buffer
+ * @param[in] frame_size the number of bytes received
+ */
 #define SNS_MSG_CHECK_SIZE( type, pointer, frame_size )         \
     ( (frame_size) < sns_msg_ ## type ## _size_n(0) ||          \
       (frame_size) < sns_msg_ ## type ## _size(pointer) )
@@ -103,14 +181,49 @@ void sns_msg_header_fill ( struct sns_msg_header *msg );
 /**********/
 
 
-// read an ACH message into buffer from the thread-local memory region
+/**
+ * Read an ACH message into buffer from the thread-local memory region
+ *
+ * @post Allocates message buffer from the thread-local memory region
+ * and reads a message from the channel.
+ *
+ * @param[in]  chan        the channel from which the message is read
+ * @param[out] pbuf        pointer to the buffer pointer
+ * @param[out] frame_size  size of the received message
+ * @param[in]  abstime     timeout for ach_get()
+ * @param[in]  options     options for ach_get()
+ */
 enum ach_status
 sns_msg_local_get( ach_channel_t *chan, void **pbuf,
                    size_t *frame_size,
                    const struct timespec *ACH_RESTRICT abstime,
                    int options );
 
-/* Define many functions for vararray messages */
+
+/**
+ * read an ACH message into buffer from the given memory region
+ *
+ * @post Allocates message buffer from the given memory region
+ * and reads a message from the channel.
+ *
+ * @param[in]     chan        the channel from which the message is read
+ * @param[in,out] region      memory region from which to allocate the message buffer
+ * @param[out]    pbuf        pointer to the buffer pointer
+ * @param[out]    frame_size  size of the received message
+ * @param[in]     abstime     timeout for ach_get()
+ * @param[in]     options     options for ach_get()
+ */
+enum ach_status
+sns_msg_region_get( ach_channel_t *chan, struct aa_mem_region *region,
+                    void **pbuf,
+                    size_t *frame_size,
+                    const struct timespec *ACH_RESTRICT abstime,
+                    int options );
+
+/**
+ * Define many functions for vararray messages
+ *
+ */
 #define SNS_DEF_MSG_VAR( type, var )                                    \
     /* size_n */                                                        \
     /* Returns size (in octets) necessary to hold n items  */           \
@@ -205,7 +318,9 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
                                     abstime, options ) ;                \
     }
 
-
+/**
+ * Declare plugin functions for message type
+ */
 #define SNS_DEC_MSG_PLUGINS( type )                                     \
     void type ## _dump                                                  \
     ( FILE*, const struct type *msg );                                  \
@@ -219,43 +334,98 @@ sns_msg_local_get( ach_channel_t *chan, void **pbuf,
 /* LOG */
 /*******/
 
+/**
+ * Message type for log messages.
+ */
 typedef struct sns_msg_log {
+    /**
+     * Message header.
+     */
     struct sns_msg_header header;
+    /**
+     * Log priority
+     */
     int priority;
+    /**
+     * Log message text.
+     */
     char text[1];
 } sns_msg_log_t;
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_log, text );
+
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_log );
 
 /**********/
 /* Vector */
 /**********/
 
+/**
+ * Message type for a floating point vector.
+ */
 struct sns_msg_vector {
+    /**
+     * Message header
+     */
     struct sns_msg_header header;
+    /**
+     * vector elements
+     */
     sns_real_t x[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_vector, x );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_vector );
 
 
 /**********/
 /* Matrix */
 /**********/
-
+/**
+ * Message type for a floating point matrix
+ */
 struct sns_msg_matrix {
+    /**
+     * Message header
+     */
     struct sns_msg_header header;
+    /**
+     * matrix rows
+     */
     uint64_t rows;
+    /**
+     * matrix columns
+     */
     uint64_t cols;
+    /**
+     * matrix elements
+     */
     sns_real_t x[1];
 };
 
+/**
+ * Compute message size of matrix with given rows and columns.
+ */
 static inline size_t sns_msg_matrix_size_mn ( size_t rows, size_t cols ) {
     static const struct sns_msg_matrix *msg;
     return sizeof(*msg) - sizeof(msg->x[0]) + sizeof(msg->x[0])*rows*cols;
 }
+
+/**
+ * Compute message size of the given matrix.
+ */
 static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
     return sns_msg_matrix_size_mn(msg->rows,msg->cols);
 }
@@ -266,36 +436,84 @@ static inline size_t sns_msg_matrix_size ( const struct sns_msg_matrix *msg ) {
 /**************/
 
 /* TF */
+/**
+ * Message type for SE(3) transforms
+ */
 struct sns_msg_tf {
+   /**
+    * The message header
+    */
     struct sns_msg_header header;
+    /**
+     * transform elements
+     */
     sns_tf tf[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_tf, tf );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_tf );
 
 /* Weighted TF */
+/**
+ * Message type for weighted transforms
+ */
 struct sns_msg_wt_tf {
+    /**
+     * The message header
+     */
     struct sns_msg_header header;
+    /**
+     * weighted transform elements
+     */
     sns_wt_tf wt_tf[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_wt_tf, wt_tf );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_wt_tf );
 
 /* TF DX */
+/**
+ * Message type for SE(3) transforms and velocity
+ */
 struct sns_msg_tf_dx {
+    /**
+     * The message header
+     */
     struct sns_msg_header header;
+    /**
+     * the transform and velocity elements
+     */
     sns_tf_dx tf_dx[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_tf_dx, tf_dx );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_tf_dx );
 
 /**********/
 /* MOTORS */
 /**********/
 
+/**
+ * Type of commands for sns_msg_motor_ref messages
+ */
 enum sns_motor_mode {
     SNS_MOTOR_MODE_HALT = 1,
     SNS_MOTOR_MODE_POS  = 2,
@@ -307,60 +525,137 @@ enum sns_motor_mode {
     SNS_MOTOR_MODE_POS_OFFSET = 16,
 };
 
+/**
+ * Message type for motor commands
+ */
 struct sns_msg_motor_ref {
+    /**
+     * The message header
+     */
     struct sns_msg_header header;
+    /**
+     * The type of command
+     */
     enum sns_motor_mode mode;
+    /**
+     * The commanded values
+     */
     sns_real_t u[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_motor_ref, u );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_motor_ref );
 
+/**
+ * Message type for motor state
+ */
 struct sns_msg_motor_state {
+    /**
+     * The message header
+     */
     struct sns_msg_header header;
+    /**
+     * The current mode of the motor
+     */
     enum sns_motor_mode mode;
+    /**
+     * Array of motor state
+     */
     struct {
+        /**
+         * The motor position
+         */
         sns_real_t pos;
+        /**
+         * The motor velocity
+         */
         sns_real_t vel;
         //sns_real_t cur;
     } X[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_motor_state, X );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_motor_state );
 
 /************/
 /* JOYSTICK */
 /************/
 
+/**
+ * Message type for joysticks and gamepads
+ */
 struct sns_msg_joystick {
+    /**
+     * The message header
+     */
     struct sns_msg_header header;
+    /**
+     * Bit mask of joystick button state
+     */
     uint64_t buttons;
+    /**
+     * Array of joystick axis state
+     */
     sns_real_t axis[1];
 };
 
+/**
+ * Declare message functions.
+ */
 SNS_DEF_MSG_VAR( sns_msg_joystick, axis );
+/**
+ * Declare message plugin functions.
+ */
 SNS_DEC_MSG_PLUGINS( sns_msg_joystick );
 
 /*************************/
 /* CONVENIENCE FUNCTIONS */
 /*************************/
 
-
-
-struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n );
+/** Allocate a motor_ref message */
+struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n ) AA_DEPRECATED;
 
 /***********/
 /* PLUGINS */
 /***********/
 
+/**
+ * Plugin function to print message to a FILE handle
+ */
 typedef void sns_msg_dump_fun( FILE *, void* );
+
+/**
+ * Plugin function to generate a plot sample for a message
+ */
 typedef void sns_msg_plot_sample_fun( const void *, double **, char ***, size_t *);
 
 // TODO: message validation
 
+/**
+ * Load symbol from message plugin
+ */
 void *sns_msg_plugin_symbol( const char *type, const char *symbol );
+
+/**
+ * Declaration for the plugin dump function
+ */
 void sns_msg_dump( FILE *out, const void *msg ) ;
+
+/**
+ * Declaration for the plugin plog_sample function
+ */
 void sns_msg_plot_sample( const void *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size ) ;
 
 #ifdef __cplusplus

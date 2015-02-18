@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, Georgia Tech Research Corporation
+ * Copyright (c) 2013-2014, Georgia Tech Research Corporation
+ * Copyright (c) 2015, Rice University
  * All rights reserved.
  *
  * Author(s): Neil T. Dantam <ntd@gatech.edu>
@@ -22,6 +23,10 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
  *
+ *   * Neither the name of the copyright holder nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
  *   CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  *   INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -41,34 +46,60 @@
 #ifndef SNS_DAEMON_H
 #define SNS_DAEMON_H
 
+/**
+ * @file  daemon.h
+ * @brief declarations for SNS daemons
+ *
+ * @author Neil T. Dantam
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-// Print every message with lower priority than SNS_LOG_LEVEL + verbosity setting
+/**
+ * When verbosity level is zero, print of this or greater severity
+ */
 #define SNS_LOG_LEVEL LOG_NOTICE
 
+/**
+ * Channel for log messages
+ */
 #define SNS_LOG_CHANNEL "sns-log"
 
+/**
+ * Default size for core dumps
+ */
 #define SNS_DEFAULT_CORE_SIZE (100 * (1<<20))
 
+
+/**
+ * Context struct for an SNS daemon.
+ *
+ * There is a single global instance of this struct.
+ */
 typedef struct sns_cx {
-    int is_initialized;              ///< is the struct initialized
-    ach_channel_t chan_log;          ///< channel the gets other events
+    int is_initialized;              ///< is the struct initialized?
+    ach_channel_t chan_log;          ///< channel the gets log events
     pid_t pid;                       ///< pid of this process
     const char *ident;               ///< identifier for this daemon
-    char host[SNS_HOSTNAME_LEN];      ///< hostname for this daemon
+    char host[SNS_HOSTNAME_LEN];     ///< hostname for this daemon
     struct timespec time_monotonic;  ///< monotonic time
     struct timespec time_real;       ///< real time
     volatile sig_atomic_t shutdown;  ///< set to true when system should shutdown
     int verbosity;                   ///< how much output to give.  Add SNS_LOG_LEVEL to get priority
-    FILE *stderr;
+    FILE *stderr;                    ///< file handler for printing log/error messages
 } sns_cx_t;
 
+/**
+ * The global SNS daemon context
+ */
 extern struct sns_cx sns_cx;
 
-/** Priority for realtime proceses */
+/**
+ * Priories for realtime proceses
+ */
 enum sns_prio {
     SOMATIC_PRIO_NONE    = 0,  ///< not realtime
     SNS_PRIO_UI          = 1,  ///< user interface
@@ -77,29 +108,50 @@ enum sns_prio {
     SNS_PRIO_MAX         = 30  ///< highest realtime priority
 };
 
+/**
+ * Initialize the SNS daemon.
+ *
+ * Call this function at when the daemon first starts and before
+ * accessing the sns_cx struct.
+ */
 void sns_init( void );
 
+/**
+ * Indicate that daemon is beginning its normal execuation.
+ *
+ * Call this function after the daemon successfully initialized, e.g.,
+ * after it processes arguments and opens channels.
+ *
+ */
 void sns_start( void );
 
-/** Destroy somatic daemon context struct.
-
-    Call this function before your daemon exists.
+/**
+ * Destroy somatic daemon context struct.
+ *
+ * Call this function before your daemon exists.
  */
 void sns_end( void );
 
 
 
 /* -- Signal Handling -- */
-/** Install signal handlers for graceful shutdown.
+/**
+ * Install signal handlers for graceful shutdown.
  *
- * When signal 'sig' is received, cancel waits on 'chan'.
- * Also sets sns_cx.shutdown to true.
+ * @post A signal handler is installed for every signal in sig.  The
+ * signal handler will set the global sns_cx.shutdown to true and call
+ * ach_cancel on every channel in chan.
  *
- * chan is a null-terminated array of ach channels.
+ * @param[in] chan a null-terminated array of ach channels.
+ * @param[in] sig  a zero-terminated array of signals
+ *
+ * @see sns_sig_term_default
+ *
  */
 void sns_sigcancel( ach_channel_t **chan, const int sig[] );
 
-/* Signals which should terminate the process.
+/**
+ * Signals which should terminate the process.
  *
  * You probably want to pass this to sns_sigcancel
  */
@@ -109,31 +161,69 @@ extern int sns_sig_term_default[];
 /* Events and errors */
 /*********************/
 
-/** Publish an event message */
+/**
+ * Publish a log message
+ *
+ * @param[in] level a syslog priority
+ * @param[in] code reserved
+ * @param[in] fmt printf format string
+ *
+ *
+ * @see SNS_LOG
+ */
 void sns_event( int level, int code, const char fmt[], ... )
 #ifdef __GNUC__
     __attribute__((format(printf, 3, 4)))
 #endif
     ;
 
-/** Terminates the process when things get really bad.*/
+/**
+ * Terminate the process.
+ */
 void sns_die( void );
 
+/**
+ * Print an error message and terminate the process.
+ */
 #define SNS_DIE( ... ) { sns_event( LOG_CRIT, 0, __VA_ARGS__ ); sns_die(); }
 
 /* Macros for to check and require conditions.
  * Other arguments are only evaluated if the test fails.
  */
 
+/** Check whether condition is satisfied and log if false
+ */
 #define SNS_CHECK( test, priority, code, fmt, ... )                     \
     if( !(test) ) { sns_event( priority, code, fmt, __VA_ARGS__); }
 
+/**
+ * If test is false, then die
+ *
+ * @param test the condition to check
+ *
+ * The remainder of the arguments are printf format string and its
+ * parameters.
+ */
 #define SNS_REQUIRE( test, ... )                \
     if( !(test) ) { SNS_DIE( __VA_ARGS__); }
 
-
+/**
+ * Evalute whether to log a message given priority.
+ *
+ * True if verbosity level indicates we should print message of given
+ * priority.
+ *
+ */
 #define SNS_LOG_PRIORITY( priority ) ((priority) <= SNS_LOG_LEVEL + sns_cx.verbosity)
 
+/**
+ * Publish a log message
+ *
+ * The arguments are a log priority level, a printf format string, and
+ * the format string arguments.
+ *
+ * @param[in] priority a syslog logging priority
+ */
 #define SNS_LOG( priority, ... )                                        \
     if( SNS_LOG_PRIORITY(priority) ) { sns_event( priority, 0,  __VA_ARGS__); }
 
@@ -141,19 +231,34 @@ void sns_die( void );
 /* Channel Handlers */
 /********************/
 
-/** Opens a channel or dies if it can't */
+/**
+ * Open a channel or die
+ *
+ * @param[out] chan the channel handle struct
+ * @param[in]  name the name of the channel to open
+ * @param[in]  attr attributes for ach_open()
+ */
 void sns_chan_open( ach_channel_t *chan, const char *name,
                            ach_attr_t *attr );
 
-/** Closes a channel */
+/**
+ * Close a channel
+ */
 void sns_chan_close( ach_channel_t *chan );
 
 
 /********************/
 /* Option Handling  */
 /********************/
+
+/**
+ * Common arguments for SNS daemons
+ */
 #define SNS_OPTSTRING "vq"
 
+/**
+ * The getopt() cases for common arguments to SNS daemons.
+ */
 #define SNS_OPTCASES                     \
     case 'v': sns_cx.verbosity++; break; \
     case 'q': sns_cx.verbosity--; break;

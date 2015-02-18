@@ -34,6 +34,15 @@
 #ifndef SNS_EVENT_H
 #define SNS_EVENT_H
 
+
+/**
+ * @file  event.h
+ * @brief Event loop for SNS daemons
+ *
+ * @author Neil T. Dantam
+ */
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -41,6 +41,14 @@
 #ifndef SNS_UTIL_H
 #define SNS_UTIL_H
 
+/**
+ * @file  event.h
+ * @brief Utility functions for SNS daemons
+ *
+ * @author Neil T. Dantam
+ */
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,8 +90,14 @@ struct timespec sns_now(void)
 
 const char *sns_str_nullterm( const char *text, size_t n );
 
+/**
+ * Parse an unsigned hexadecimal number
+ */
 unsigned long sns_parse_uhex( const char *arg, uint64_t max );
 
+/**
+ * Parse a floating point number
+ */
 double sns_parse_float( const char *arg );
 
 #ifdef __cplusplus
