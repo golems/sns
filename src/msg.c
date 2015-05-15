@@ -107,9 +107,10 @@ int sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec 
                                 .tv_nsec = msg->nsec};
     struct timespec then = sns_time_add_ns( msg_time, msg->dur_nsec );
 
-    return ( now.tv_sec > then.tv_sec ||
-             (now.tv_sec == then.tv_sec &&
-              now.tv_nsec > then.tv_nsec) );
+    return (SNS_TIME_GT(now, then));
+    // return ( now.tv_sec > then.tv_sec ||
+    //          (now.tv_sec == then.tv_sec &&
+    //           now.tv_nsec > then.tv_nsec) );
 }
 
 void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, int64_t dur_nsec ) {
