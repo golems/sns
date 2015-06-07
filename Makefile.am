@@ -7,7 +7,8 @@ pkginclude_HEADERS =                              \
 	include/sns/util.h                        \
 	include/sns/daemon.h			   \
 	include/sns/event.h			   \
-	include/sns/path.h
+	include/sns/path.h                         \
+        include/sns/sdh_tactile.h
 
 
 init_ddir = $(sysconfdir)/init.d
@@ -53,6 +54,11 @@ libsns_msg_tf_dx_la_SOURCES = src/msg_plugin.c
 libsns_msg_tf_dx_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tf_dx
 libsns_msg_tf_dx_la_LIBADD = libsns.la
 
+
+lib_LTLIBRARIES += libsns_msg_sdh_tactile.la
+libsns_msg_sdh_tactile_la_SOURCES = src/msg_plugin.c
+libsns_msg_sdh_tactile_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_sdh_tactile
+libsns_msg_sdh_tactile_la_LIBADD = libsns.la
 
 bin_PROGRAMS = snsdump snsplot sns-trylock
 
