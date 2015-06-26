@@ -29,6 +29,11 @@ libsns_msg_motor_ref_la_SOURCES = src/msg_plugin.c
 libsns_msg_motor_ref_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_ref
 libsns_msg_motor_ref_la_LIBADD = libsns.la
 
+lib_LTLIBRARIES += libsns_msg_tag_motor_ref.la
+libsns_msg_tag_motor_ref_la_SOURCES = src/msg_plugin.c
+libsns_msg_tag_motor_ref_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_tag_motor_ref
+libsns_msg_tag_motor_ref_la_LIBADD = libsns.la
+
 lib_LTLIBRARIES += libsns_msg_motor_state.la
 libsns_msg_motor_state_la_SOURCES = src/msg_plugin.c
 libsns_msg_motor_state_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_motor_state

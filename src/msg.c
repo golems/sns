@@ -107,9 +107,10 @@ int sns_msg_is_expired( const struct sns_msg_header *msg, const struct timespec 
                                 .tv_nsec = msg->nsec};
     struct timespec then = sns_time_add_ns( msg_time, msg->dur_nsec );
 
-    return ( now.tv_sec > then.tv_sec ||
-             (now.tv_sec == then.tv_sec &&
-              now.tv_nsec > then.tv_nsec) );
+    return (SNS_TIME_GT(now, then));
+    // return ( now.tv_sec > then.tv_sec ||
+    //          (now.tv_sec == then.tv_sec &&
+    //           now.tv_nsec > then.tv_nsec) );
 }
 
 void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *arg, int64_t dur_nsec ) {
@@ -353,6 +354,46 @@ void sns_msg_motor_ref_plot_sample(
         *sample_size = msg->header.n;
 }
 
+/*---- tag_motor_ref ----*/
+void sns_msg_tag_motor_ref_dump ( FILE *out, const struct sns_msg_tag_motor_ref *msg ) {
+    dump_header( out, &msg->header, "tag_motor_ref" );
+    const char *mode = "?";
+    switch( msg->mode ) {
+    case SNS_MOTOR_MODE_HALT:       mode = "halt";             break;
+    case SNS_MOTOR_MODE_POS:        mode = "position";         break;
+    case SNS_MOTOR_MODE_VEL:        mode = "velocity";         break;
+    case SNS_MOTOR_MODE_TORQ:       mode = "torque";           break;
+    case SNS_MOTOR_MODE_CUR:        mode = "current";          break;
+    case SNS_MOTOR_MODE_POS_OFFSET: mode = "position offset";  break;
+    case SNS_MOTOR_MODE_RESET:      mode = "reset";  break;
+    }
+    fprintf(out, "\t%s\n", mode );
+    for( uint32_t i = 0; i < msg->header.n; i ++ )
+        fprintf(out, "\t(%f,%lu)", msg->u[i].val, msg->u[i].priority );
+
+    fprintf( out, "\n" );
+}
+
+void sns_msg_tag_motor_ref_plot_sample(
+    const struct sns_msg_tag_motor_ref *msg, double **sample_ptr, char ***sample_labels, size_t *sample_size )
+{
+    aa_mem_region_t *reg = aa_mem_region_local_get();
+
+    if( sample_ptr ) {
+        *sample_ptr = (double*)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->header.n );
+        for( size_t i = 0; i < msg->header.n; i ++ )
+            (*sample_ptr)[i] = msg->u[i].val;
+    }
+
+    if( sample_labels ) {
+        *sample_labels = (char**)aa_mem_region_alloc( reg, sizeof((*sample_ptr)[0]) * msg->header.n );
+        for( size_t i = 0; i < msg->header.n; i ++ )
+        (*sample_labels)[i] = aa_mem_region_printf( reg, "%d", i );
+    }
+
+    if( sample_size )
+        *sample_size = msg->header.n;
+}
 
 /*---- motor_state ----*/
 struct sns_msg_motor_state *sns_msg_motor_state_alloc ( uint32_t n ) {
