@@ -41,6 +41,12 @@
 #ifndef SNS_MSG_H
 #define SNS_MSG_H
 
+/**
+ * Returns true if struct timespec x is greater than struct timespec y
+ */
+#define SNS_TIME_GT(x, y) (x.tv_sec > y.tv_sec || \
+	(x.tv_sec == y.tv_sec && x.tv_nsec > y.tv_nsec))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -551,6 +557,43 @@ SNS_DEF_MSG_VAR( sns_msg_motor_ref, u );
  * Declare message plugin functions.
  */
 SNS_DEC_MSG_PLUGINS( sns_msg_motor_ref );
+
+/**
+ * Message type for tagged motor commands
+ */
+struct sns_msg_tag_motor_ref {
+    /**
+     * The message header
+     */
+    struct sns_msg_header header;
+    /**
+     * The type of command
+     */
+    enum sns_motor_mode mode;
+    /**
+     * Array of values and priority
+     */
+    struct {
+	    /**
+	     * The commanded value
+	     */
+	    sns_real_t val;
+
+	    /**
+	     * The priority of this value
+	     */
+	    uint64_t priority;
+    } u[1];
+};
+
+/**
+ * Declare message functions.
+ */
+SNS_DEF_MSG_VAR( sns_msg_tag_motor_ref, u );
+/**
+ * Declare message plugin functions.
+ */
+SNS_DEC_MSG_PLUGINS( sns_msg_tag_motor_ref );
 
 /**
  * Message type for motor state
