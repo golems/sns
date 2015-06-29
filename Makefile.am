@@ -69,37 +69,37 @@ bin_PROGRAMS = snsdump snsplot sns-trylock
 
 
 snsdump_SOURCES = src/snsdump.c
-snsdump_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsdump_LDADD = libsns.la -lach -lamino
 
 snsplot_SOURCES = src/snsplot.c
-snsplot_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsplot_LDADD = libsns.la -lach -lamino
 
 sns_trylock_SOURCES = src/sns-trylock.c
 
 
 bin_PROGRAMS += snslogd
 snslogd_SOURCES = src/snslogd.c
-snslogd_LDADD = libsns.la -lach -lamino -llapack -lblas
+snslogd_LDADD = libsns.la -lach -lamino
 
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
-snslog_LDADD = libsns.la -lach -lamino -llapack -lblas
+snslog_LDADD = libsns.la -lach -lamino
 
 bin_PROGRAMS += snsref
 snsref_SOURCES = src/snsref.c
-snsref_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsref_LDADD = libsns.la -lach -lamino
 
 bin_PROGRAMS += snsrec
 snsrec_SOURCES = src/snsrec.c
-snsrec_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsrec_LDADD = libsns.la -lach -lamino
 
 bin_PROGRAMS += snsreced
 snsreced_SOURCES = src/snsreced.c
-snsreced_LDADD = libsns.la -lach -lamino -llapack -lblas
+snsreced_LDADD = libsns.la -lach -lamino
 
 bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
-snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino -llapack -lblas
+snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino
 
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \

@@ -47,6 +47,8 @@ AC_SEARCH_LIBS([pthread_create],[pthread])
 AC_SEARCH_LIBS([clock_gettime],[rt])
 AC_SEARCH_LIBS([dlopen],[dl])
 
+AC_SEARCH_LIBS([dgemm_],[openblas blas])
+AC_SEARCH_LIBS([dgesvd_],[lapack])
 
 # Enable maximum warnings
 m4_ifdef([AX_CFLAGS_WARN_ALL],
