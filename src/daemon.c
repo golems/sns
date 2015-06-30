@@ -48,6 +48,8 @@
 #include <syslog.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <sched.h>
+#include <sys/mman.h>
 
 struct sns_cx sns_cx = {0};
 
@@ -167,6 +169,48 @@ void sns_init( void ) {
     }
 
     sns_cx.is_initialized = 1;
+}
+
+
+void sns_init_rt( const struct sns_init_rt_opts *opts )
+{
+    sns_init();
+
+    // set scheduling policy
+    {
+        int max = sched_get_priority_max( SCHED_RR );
+        int min = sched_get_priority_min( SCHED_RR );
+        if( max >= 0 && min >= 0 ) {
+            int pri = opts->prio;
+            if( pri > 0 && pri >= min ) {
+                struct sched_param sp;
+                /* 32 is max portable priority*/
+                if( pri > max ) {
+                    syslog(LOG_WARNING, "Requested priority %d exceeds max %d",
+                           pri, max);
+                    pri = max;
+                }
+                sp.sched_priority = pri;
+                if( sched_setscheduler( 0, SCHED_RR, &sp) < 0 ) {
+                    syslog(LOG_ERR, "Couldn't set scheduling priority to %d: %s\n",
+                           pri, strerror(errno) );
+                }
+            }
+        } else {
+            syslog(LOG_ERR, "Couldn't get scheduling priorities: %d, %d, %s\n",
+                   max, min, strerror(errno) );
+        }
+    }
+
+    // lock memory, can't swap to disk
+
+    char prefault[1024*256];
+    memset( prefault,0,sizeof(prefault) );
+    if( mlockall( MCL_CURRENT | MCL_FUTURE ) ) {
+        syslog( LOG_ERR, "Couldn't lock pages in memory: %s",
+                strerror(errno) );
+    }
+
 }
 
 

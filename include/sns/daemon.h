@@ -116,6 +116,16 @@ enum sns_prio {
  */
 void sns_init( void );
 
+
+struct sns_init_rt_opts {
+    enum sns_prio prio;
+};
+
+/**
+ * Make real-time
+ */
+void sns_init_rt( const struct sns_init_rt_opts *opts );
+
 /**
  * Indicate that daemon is beginning its normal execuation.
  *
