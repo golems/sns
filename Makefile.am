@@ -1,14 +1,14 @@
-ACLOCAL_AMFLAGS = -I m4
+ACLOCAL_AMFLAGS = -Im4
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 include_HEADERS = include/sns.h
-pkginclude_HEADERS =                              \
-	include/sns/msg.h                         \
-	include/sns/util.h                        \
-	include/sns/daemon.h			   \
-	include/sns/event.h			   \
-	include/sns/path.h                         \
-        include/sns/sdh_tactile.h
+pkginclude_HEADERS =        \
+	include/sns/msg.h         \
+	include/sns/util.h        \
+	include/sns/daemon.h			\
+	include/sns/event.h			  \
+	include/sns/path.h        \
+	include/sns/sdh_tactile.h
 
 
 init_ddir = $(sysconfdir)/init.d
@@ -16,7 +16,7 @@ init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
 libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c src/event.c
-libsns_la_LIBADD = -lach -lamino -lach-experimental
+libsns_la_LIBADD = $(AMINO_LIBS) $(ACH_LIBS)
 
 ## PLUGINS
 lib_LTLIBRARIES += libsns_msg_joystick.la
@@ -69,37 +69,37 @@ bin_PROGRAMS = snsdump snsplot sns-trylock
 
 
 snsdump_SOURCES = src/snsdump.c
-snsdump_LDADD = libsns.la -lach -lamino
+snsdump_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 snsplot_SOURCES = src/snsplot.c
-snsplot_LDADD = libsns.la -lach -lamino
+snsplot_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 sns_trylock_SOURCES = src/sns-trylock.c
 
 
 bin_PROGRAMS += snslogd
 snslogd_SOURCES = src/snslogd.c
-snslogd_LDADD = libsns.la -lach -lamino
+snslogd_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
-snslog_LDADD = libsns.la -lach -lamino
+snslog_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsref
 snsref_SOURCES = src/snsref.c
-snsref_LDADD = libsns.la -lach -lamino
+snsref_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsrec
 snsrec_SOURCES = src/snsrec.c
-snsrec_LDADD = libsns.la -lach -lamino
+snsrec_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsreced
 snsreced_SOURCES = src/snsreced.c
-snsreced_LDADD = libsns.la -lach -lamino
+snsreced_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
-snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino
+snsmplex_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \

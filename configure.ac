@@ -3,7 +3,8 @@
 
 AC_PREREQ([2.65])
 AC_INIT([sns], [1.1.0], [ntd@rice.edu])
-AM_INIT_AUTOMAKE([-Wall subdir-objects])
+AM_INIT_AUTOMAKE([subdir-objects])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_SRCDIR([include/sns.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -43,6 +44,18 @@ dnl AC_CHECK_SIZEOF(unsigned long long)
 dnl AC_CHECK_DECLS([PRIuPTR,PRIu64,PRIx64])
 
 dnl AC_CHECK_FUNCS([ftruncate isascii memmove memset munmap socket strcasecmp strchr strdup strerror strtol])
+PKG_CHECK_MODULES([AMINO], [amino])
+AC_SUBST([AMINO_CFLAGS])
+AC_SUBST([AMINO_LIBS])
+
+PKG_CHECK_MODULES([ACH], [ach])
+AC_SUBST([ACH_CFLAGS])
+AC_SUBST([ACH_LIBS])
+
+ACH_LIBS="$ACH_LIBS -lach-experimental"
+
+CFLAGS="$CFLAGS $AMINO_CFLAGS $ACH_CFLAGS"
+
 AC_SEARCH_LIBS([pthread_create],[pthread])
 AC_SEARCH_LIBS([clock_gettime],[rt])
 AC_SEARCH_LIBS([dlopen],[dl])
@@ -76,6 +89,9 @@ m4_ifdef([APPEND_FLAG],
           APPEND_FLAG([-Wshadow])
           APPEND_FLAG([-Wwrite-strings])
           APPEND_FLAG([-Wc++-compat])])
+
+dnl Fix the bad default for ar flags in automake
+AR_FLAGS="cr"
 
 dnl # Doxygen
 m4_ifdef([DX_INIT_DOXYGEN],
@@ -129,6 +145,12 @@ dnl AM_CONDITIONAL([HAVE_PYTHON],   [test x: != x$PYTHON -a x != x$PYTHON])
 AC_CONFIG_FILES([Makefile])
 
 AC_OUTPUT
+
+
+AS_BOX([SNS CONFIGURATION SUMMARY])
+AC_MSG_NOTICE([prefix:            $prefix])
+AC_MSG_NOTICE([C compiler:        $CC])
+AC_MSG_NOTICE([CFLAGS:            $CFLAGS])
 
 dnl AC_MSG_NOTICE([])
 dnl AC_MSG_NOTICE([CONFIGURATION SUMMARY])
