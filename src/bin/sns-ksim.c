@@ -177,6 +177,7 @@ int main(int argc, char **argv)
     cx.in = AA_NEW_AR(struct in_cx, cx.n_ref);
 
     // Initialize arrays
+    struct ach_channel *channels[cx.n_ref+1];
     for( size_t j = cx.n_ref; j; j--) {
         size_t i = j-1;
 
@@ -188,6 +189,7 @@ int main(int argc, char **argv)
 
         // open channel
         sns_chan_open( &cx.in[i].channel, cx.in[i].name, NULL );
+        channels[i] = &cx.in[i].channel;
 
         // init handler
         cx.handlers[i].channel = &cx.in[i].channel;
@@ -195,6 +197,8 @@ int main(int argc, char **argv)
         cx.handlers[i].handler = handle;
 
     }
+    channels[cx.n_ref] = NULL;
+    sns_sigcancel( channels, sns_sig_term_default );
 
     SNS_LOG(LOG_INFO, "Simulation Frequeny: `%f'\n", opt_sim_frequecy);
     cx.period_sec = 1/opt_sim_frequecy;
@@ -241,7 +245,6 @@ void io(struct cx *cx) {
     // Run Loop
     while( !sns_cx.shutdown) {
         errno = 0;
-        printf("evhandle\n");
         enum ach_status r = ach_evhandle( cx->handlers, cx->n_ref,
                                           &cx->period, io_periodic, cx,
                                           ACH_EV_O_PERIODIC_TIMEOUT );
@@ -250,6 +253,11 @@ void io(struct cx *cx) {
                      "Could not handle events: %s, %s\n",
                      ach_result_to_string(r),
                      strerror(errno) );
+    }
+
+    // stop window
+    if( cx->win ) {
+        aa_rx_win_stop(cx->win);
     }
 }
 
@@ -274,42 +282,48 @@ enum ach_status handle_msg( void *cx_, enum ach_status status, size_t frame_size
     struct in_cx *cx_in = (struct in_cx*)cx_;
     struct cx *cx = cx_in->cx;
 
-    if( ACH_STALE_FRAMES == status ) {
+    switch(status) {
+
+    case ACH_STALE_FRAMES:
+    case ACH_CANCELED:
+        return status;
+
+    case ACH_OK:
+    case ACH_MISSED_FRAME: {
+        if( frame_size < sizeof(struct sns_msg_header) ) {
+            SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
+        } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
+            SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+        } else if( msg->header.n != cx->n_q ) {
+            SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+        } else {
+            // Message looks OK
+            SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
+                switch(msg->mode) {
+                case SNS_MOTOR_MODE_POS:
+                    for( size_t i = 0; i < cx->n_q; i ++ ) {
+                        cx->q_ref[i] = msg->u[i];
+                    }
+                    cx->have_q_ref = 1;
+                    break;
+                case SNS_MOTOR_MODE_VEL:
+                    for( size_t i = 0; i < cx->n_q; i ++ ) {
+                        cx->dq_ref[i] = msg->u[i];
+                    }
+                    cx->have_dq_ref = 1;
+                    break;
+                default:
+                    SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
+                }
+        }
+
+        return ACH_OK;
+    }
+
+    default:
+        SNS_DIE("Could not get ach message on: %s\n", ach_result_to_string(status) );
         return status;
     }
-
-    SNS_REQUIRE( (ACH_OK == status || ACH_MISSED_FRAME == status),
-                 "Could not get ach message on: %s\n",
-                 ach_result_to_string(status) );
-
-    if( frame_size < sizeof(struct sns_msg_header) ) {
-        SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
-    } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
-        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
-    } else if( msg->header.n != cx->n_q ) {
-        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
-    } else {
-        // Message looks OK
-        SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
-        switch(msg->mode) {
-        case SNS_MOTOR_MODE_POS:
-            for( size_t i = 0; i < cx->n_q; i ++ ) {
-                cx->q_ref[i] = msg->u[i];
-            }
-            cx->have_q_ref = 1;
-            break;
-        case SNS_MOTOR_MODE_VEL:
-            for( size_t i = 0; i < cx->n_q; i ++ ) {
-                cx->dq_ref[i] = msg->u[i];
-            }
-            cx->have_dq_ref = 1;
-            break;
-        default:
-            SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
-        }
-    }
-
-    return ACH_OK;
 }
 
 enum ach_status io_periodic( void *cx_ )
@@ -322,7 +336,12 @@ enum ach_status io_periodic( void *cx_ )
     // Update display
     if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
 
-    return ACH_OK;
+    // check cancelation
+    if( sns_cx.shutdown ) {
+        return ACH_CANCELED;
+    } else {
+        return ACH_OK;
+    }
 }
 
 
