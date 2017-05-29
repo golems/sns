@@ -101,6 +101,12 @@ bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
 snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino
 
+
+bin_PROGRAMS += sns-ksim
+sns_ksim_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
+sns_ksim_SOURCES = src/bin/sns-ksim.c
+sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
+
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
 	       $(DESTDIR)$(bindir)/sns$(EXEEXT)

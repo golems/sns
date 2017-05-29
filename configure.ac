@@ -95,6 +95,28 @@ m4_ifdef([DX_INIT_DOXYGEN],
           AM_CONDITIONAL([DX_COND_man],   false)
          ])
 
+
+## Amino ##
+PKG_CHECK_MODULES([AMINO],
+                  [amino],
+                  [HAVE_AMINO=yes])
+CFLAGS="$CFLAGS $AMINO_CFLAGS"
+LDFLAGS="$LDFLAGS $AMINO_LDFLAGS"
+
+## SDL ##
+PKG_CHECK_MODULES([GL],
+                  [gl],
+                  [HAVE_GL=yes])
+AC_SUBST([GL_CFLAGS])
+AC_SUBST([GL_LIBS])
+
+PKG_CHECK_MODULES([SDL2],
+                  [sdl2],
+                  [HAVE_SDL2=yes])
+
+AC_SUBST([SDL2_CFLAGS])
+AC_SUBST([SDL2_LIBS])
+
 dnl # Check for programs to make documentation
 dnl AC_CHECK_PROGS([HELP2MAN], [help2man])
 dnl AC_CHECK_PROGS([MAN2HTML], [man2html])
