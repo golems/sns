@@ -75,14 +75,26 @@ struct cx {
 
     struct ach_evhandler *handlers;
     struct timespec period;
+    double period_sec;
 };
 
-void io(struct cx *cx);
-void* io_start(void *cx);
-enum ach_status simulate( void *cx_ );
 
+// Reference input handler
 enum ach_status handle( void *cx, struct ach_channel *channel );
-enum ach_status periodic( void *cx );
+
+// Handle a message
+enum ach_status handle_msg( void *cx, enum ach_status status, size_t frame_size, void *msg );
+
+// Run io
+void io(struct cx *cx);
+// Pthreads start function for io
+void* io_start(void *cx);
+
+// Call periodically from io thread
+enum ach_status io_periodic( void *cx );
+
+// Perform a simulation step
+enum ach_status simulate( struct cx *cx );
 
 int main(int argc, char **argv)
 {
@@ -132,7 +144,7 @@ int main(int argc, char **argv)
                       "  -?,                       display this help and exit\n"
                       "\n"
                       "Examples:\n"
-                      "  sns-mplex -chan -o out-chan input-0 input-1 input-2\n"
+                      "  sns-ksim -o state -i ref -s libmyrobot.so -n myrobot\n"
                       "\n"
                       "Report bugs to <ntd@rice.edu>"
                     );
@@ -185,6 +197,7 @@ int main(int argc, char **argv)
     }
 
     SNS_LOG(LOG_INFO, "Simulation Frequeny: `%f'\n", opt_sim_frequecy);
+    cx.period_sec = 1/opt_sim_frequecy;
     long period_ns = (long)(1e9 / opt_sim_frequecy);
 
     cx.period.tv_sec = (time_t)period_ns / (time_t)1e9;
@@ -200,10 +213,10 @@ int main(int argc, char **argv)
         SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
     }
 
-    // Start GUI
+    // Start GUI in main thread
     cx.win = aa_rx_win_default_create ( "sns-ksim", 800, 600 );
-
     aa_rx_win_set_sg(cx.win, cx.scenegraph);
+    sns_start();
     aa_rx_win_run();
 
     // Stop threads
@@ -211,6 +224,9 @@ int main(int argc, char **argv)
     if( pthread_join(io_thread, NULL) ) {
         SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
     }
+    sns_end();
+
+
 
     return 0;
 }
@@ -227,7 +243,7 @@ void io(struct cx *cx) {
         errno = 0;
         printf("evhandle\n");
         enum ach_status r = ach_evhandle( cx->handlers, cx->n_ref,
-                                          &cx->period, simulate, cx,
+                                          &cx->period, io_periodic, cx,
                                           ACH_EV_O_PERIODIC_TIMEOUT );
         if(sns_cx.shutdown) break;
         SNS_REQUIRE( ACH_OK == r,
@@ -238,21 +254,33 @@ void io(struct cx *cx) {
 }
 
 
-enum ach_status handle( void *cx_, struct ach_channel *channel )
+enum ach_status handle( void *cx, struct ach_channel *channel )
 {
+    size_t frame_size;
+    void *msg;
+    enum ach_status r = sns_msg_local_get( channel, &msg,
+                                           &frame_size, NULL, ACH_O_LAST );
+
+    enum ach_status result = handle_msg( cx, r, frame_size, msg);
+
+    aa_mem_region_local_pop(msg);
+    return result;
+}
+
+
+enum ach_status handle_msg( void *cx_, enum ach_status status, size_t frame_size, void *msg_ )
+{
+    struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref *)msg_;
     struct in_cx *cx_in = (struct in_cx*)cx_;
     struct cx *cx = cx_in->cx;
 
-    //SNS_LOG(LOG_DEBUG, "Event on channel %s\n", cx_in->name );
+    if( ACH_STALE_FRAMES == status ) {
+        return status;
+    }
 
-    struct sns_msg_motor_ref *msg;
-    size_t frame_size;
-    enum ach_status r = sns_msg_motor_ref_local_get( channel, &msg,
-                                                     &frame_size, NULL, ACH_O_LAST );
-    if( ACH_STALE_FRAMES == r ) return r;
-    SNS_REQUIRE( (ACH_OK == r || ACH_MISSED_FRAME == r),
+    SNS_REQUIRE( (ACH_OK == status || ACH_MISSED_FRAME == status),
                  "Could not get ach message on: %s\n",
-                 ach_result_to_string(r) );
+                 ach_result_to_string(status) );
 
     if( frame_size < sizeof(struct sns_msg_header) ) {
         SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
@@ -270,23 +298,50 @@ enum ach_status handle( void *cx_, struct ach_channel *channel )
             }
             cx->have_q_ref = 1;
             break;
+        case SNS_MOTOR_MODE_VEL:
+            for( size_t i = 0; i < cx->n_q; i ++ ) {
+                cx->dq_ref[i] = msg->u[i];
+            }
+            cx->have_dq_ref = 1;
+            break;
         default:
             SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
         }
     }
 
+    return ACH_OK;
+}
 
-    aa_mem_region_local_pop( msg );
+enum ach_status io_periodic( void *cx_ )
+{
+    struct cx *cx = (struct cx*)cx_;
+
+    // Run simulation
+    simulate(cx);
+
+    // Update display
+    if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
 
     return ACH_OK;
 }
 
-enum ach_status simulate( void *cx_ ) {
-    struct cx *cx = (struct cx*)cx_;
+
+enum ach_status simulate( struct cx *cx )
+{
+    // Set Refs
     if( cx->have_q_ref ) {
+        // Set ref pos
         AA_MEM_CPY( cx->q_act, cx->q_ref, cx->n_q );
-        if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
-        cx->have_q_ref = 0;
+        AA_MEM_ZERO( cx->dq_act, cx->n_q );
+    } else if( cx->have_dq_ref ) {
+        // Set ref vel
+        AA_MEM_CPY( cx->dq_act, cx->dq_ref, cx->n_q );
     }
+    cx->have_q_ref = 0;
+    cx->have_dq_ref = 0;
+
+    // Integrate (euler step)
+    aa_la_axpy( cx->n_q, cx->period_sec, cx->dq_act, cx->q_act );
+
     return ACH_OK;
 }
