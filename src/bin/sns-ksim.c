@@ -45,13 +45,13 @@
 #include <amino/rx/scene_gl.h>
 #include <amino/rx/scene_win.h>
 
+struct cx;
+
+
 struct in_cx {
     struct ach_channel channel;
-    struct sns_msg_header *msg;
     const char *name;
-    size_t max;
-    size_t frame_size;
-    _Bool updated;
+    struct cx *cx;
 };
 
 struct cx {
@@ -61,13 +61,29 @@ struct cx {
 
     struct aa_rx_sg *scenegraph;
 
-    double *q;
-    double *dq;
+    pthread_mutex_t mutex;
+
+    double *q_ref;
+    double *dq_ref;
+    int have_q_ref;
+    int have_dq_ref;
+
+    double *q_act;
+    double *dq_act;
     size_t n_q;
+
+    struct aa_rx_win * win;
+
+    struct ach_evhandler *handlers;
+    struct timespec period;
 };
 
-void simulate(struct cx *cx);
-void* simulate_start(void *cx);
+void lock(pthread_mutex_t *mutex);
+void unlock(pthread_mutex_t *mutex);
+void io(struct cx *cx);
+void* io_start(void *cx);
+void sim(struct cx *cx);
+void* sim_start(void *cx);
 
 enum ach_status handle( void *cx, struct ach_channel *channel );
 enum ach_status periodic( void *cx );
@@ -144,10 +160,12 @@ int main(int argc, char **argv)
     SNS_REQUIRE( NULL != cx.scenegraph, "Could not load scene plugin");
     aa_rx_sg_init(cx.scenegraph);
     cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
-    cx.q = AA_NEW_AR(double,cx.n_q);
-    cx.dq = AA_NEW_AR(double,cx.n_q);
+    cx.q_act = AA_NEW_AR(double,cx.n_q);
+    cx.dq_act = AA_NEW_AR(double,cx.n_q);
+    cx.q_ref = AA_NEW_AR(double,cx.n_q);
+    cx.dq_ref = AA_NEW_AR(double,cx.n_q);
 
-    struct ach_evhandler *handlers = AA_NEW_AR( struct ach_evhandler, cx.n_ref);
+    cx.handlers = AA_NEW_AR( struct ach_evhandler, cx.n_ref);
     cx.in = AA_NEW_AR(struct in_cx, cx.n_ref);
 
     // Initialize arrays
@@ -158,140 +176,161 @@ int main(int argc, char **argv)
         SNS_LOG(LOG_INFO, "Reference Channel[%lu]: `%s'\n", i, name);
 
         cx.in[i].name = name;
+        cx.in[i].cx = &cx;
 
         // open channel
         sns_chan_open( &cx.in[i].channel, cx.in[i].name, NULL );
 
         // init handler
-        handlers[i].channel = &cx.in[i].channel;
-        handlers[i].context = cx.in+i;
-        handlers[i].handler = handle;
+        cx.handlers[i].channel = &cx.in[i].channel;
+        cx.handlers[i].context = cx.in+i;
+        cx.handlers[i].handler = handle;
 
     }
 
     SNS_LOG(LOG_INFO, "Simulation Frequeny: `%f'\n", opt_sim_frequecy);
     long period_ns = (long)(1e9 / opt_sim_frequecy);
 
-    struct timespec period = {(time_t)period_ns / (time_t)1e9,
-                              (period_ns % (long)1e9)};
+    cx.period.tv_sec = (time_t)period_ns / (time_t)1e9;
+    cx.period.tv_nsec = period_ns % (long)1e9;
 
     SNS_LOG( LOG_DEBUG, "Simulation Period: %lus + %ldns\n",
-             period.tv_sec, period.tv_nsec );
+             cx.period.tv_sec, cx.period.tv_nsec );
 
 
-    // Start Simulation (TODO)
+    // Start threads
+    pthread_t sim_thread, io_thread;
+    if( pthread_mutex_init(&cx.mutex, NULL) ) {
+        SNS_DIE("Could not init mutex: `%s'", strerror(errno));
+    }
+    if( pthread_create(&sim_thread, NULL, sim_start, &cx) ) {
+        SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
+    }
+    if( pthread_create(&io_thread, NULL, io_start, &cx) ) {
+        SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
+    }
 
     // Start GUI
-    struct aa_rx_win * win =
-        aa_rx_win_default_create ( "sns-ksim", 800, 600 );
+    cx.win = aa_rx_win_default_create ( "sns-ksim", 800, 600 );
 
-    aa_rx_win_set_sg(win, cx.scenegraph);
+    aa_rx_win_set_sg(cx.win, cx.scenegraph);
     aa_rx_win_run();
 
-    // Stop simulation (TODO)
-
-
-    /* // Run Loop */
-    /* while( !sns_cx.shutdown) { */
-    /*     errno = 0; */
-    /*     enum ach_status r = ach_evhandle( handlers, cx.n, */
-    /*                                       &period, periodic, &cx, */
-    /*                                       ACH_EV_O_PERIODIC_INPUT ); */
-    /*     if(sns_cx.shutdown) break; */
-    /*     SNS_REQUIRE( ACH_OK == r, */
-    /*                  "Could not handle events: %s, %s\n", */
-    /*                  ach_result_to_string(r), */
-    /*                  strerror(errno) ); */
-    /* } */
+    // Stop threads
+    sns_cx.shutdown = 1;
+    if( pthread_join(sim_thread, NULL) ) {
+        SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
+    }
+    if( pthread_mutex_destroy(&cx.mutex) ) {
+        SNS_LOG(LOG_ERR, "Could not destroy mutex: `%s'", strerror(errno));
+    }
 
     return 0;
 }
 
 
-void* simulate_start(void *cx) {
-    simulate((struct cx*)cx);
+void* io_start(void *cx) {
+    io((struct cx*)cx);
     return NULL;
 }
 
-void simulate(struct cx *cx) {
-
+void io(struct cx *cx) {
+    // Run Loop
+    while( !sns_cx.shutdown) {
+        errno = 0;
+        printf("evhandle\n");
+        enum ach_status r = ach_evhandle( cx->handlers, cx->n_ref,
+                                          &cx->period, periodic, cx,
+                                          ACH_EV_O_PERIODIC_INPUT );
+        if(sns_cx.shutdown) break;
+        SNS_REQUIRE( ACH_OK == r,
+                     "Could not handle events: %s, %s\n",
+                     ach_result_to_string(r),
+                     strerror(errno) );
+    }
 }
 
 
-enum ach_status handle( void *cx, struct ach_channel *channel )
+enum ach_status handle( void *cx_, struct ach_channel *channel )
 {
-/*     struct mplex_input *m = (struct mplex_input*)cx; */
-/*     SNS_LOG(LOG_DEBUG, "Event on channel %s\n", m->name ); */
+    struct in_cx *cx_in = (struct in_cx*)cx_;
+    struct cx *cx = cx_in->cx;
 
-/*     if( ! m->msg ) { */
-/*         // lazily allocate message */
-/*         void *msg; */
-/*         enum ach_status r = sns_msg_local_get( channel, &msg, */
-/*                                                &m->frame_size, NULL, ACH_O_LAST ); */
-/*         if( ACH_STALE_FRAMES == r ) return r; */
-/*         SNS_REQUIRE( (ACH_OK == r || ACH_MISSED_FRAME == r), */
-/*                      "Could not get ach message on %s: %s\n", */
-/*                      m->name, ach_result_to_string(r) ); */
+    //SNS_LOG(LOG_DEBUG, "Event on channel %s\n", cx_in->name );
 
-/*         if( m->frame_size < sizeof(struct sns_msg_header) ) { */
-/*             SNS_LOG(LOG_ERR, "Invalid message size on channel %s\n", m->name); */
-/*         } else { */
-/*             m->msg = (struct sns_msg_header*)malloc(m->frame_size); */
-/*             m->max = m->frame_size; */
-/*             memcpy(m->msg, msg, m->frame_size); */
-/*         } */
-/*         m->updated = 1; */
-/*         aa_mem_region_local_pop( msg ); */
-/*     } else { */
-/*         enum ach_status r = ach_get( channel, m->msg, m->max, */
-/*                                      &m->frame_size, NULL, ACH_O_LAST ); */
-/*         switch(r) { */
-/*         case ACH_OK: */
-/*         case ACH_MISSED_FRAME: */
-/*             // got it */
-/*             m->updated = 1; */
-/*             break; */
-/*         case ACH_STALE_FRAMES: return r; */
-/*         case ACH_OVERFLOW: */
-/*             // TODO: maybe handle this? */
-/*             SNS_LOG(LOG_ERR, "Message overflow on channel %s\n", m->name); */
-/*             break; */
-/*         default: */
-/*             SNS_DIE("Could not get message from channel %s: %s\n", */
-/*                     m->name, ach_result_to_string(r) ); */
-/*         } */
-/*     } */
+    struct sns_msg_motor_ref *msg;
+    size_t frame_size;
+    enum ach_status r = sns_msg_motor_ref_local_get( channel, &msg,
+                                                     &frame_size, NULL, ACH_O_LAST );
+    if( ACH_STALE_FRAMES == r ) return r;
+    SNS_REQUIRE( (ACH_OK == r || ACH_MISSED_FRAME == r),
+                 "Could not get ach message on: %s\n",
+                 ach_result_to_string(r) );
+
+    if( frame_size < sizeof(struct sns_msg_header) ) {
+        SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
+    } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
+        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+    } else if( msg->header.n != cx->n_q ) {
+        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+    } else {
+        // Message looks OK
+        SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
+        switch(msg->mode) {
+        case SNS_MOTOR_MODE_POS:
+            lock(&cx->mutex);
+            for( size_t i = 0; i < cx->n_q; i ++ ) {
+                cx->q_ref[i] = msg->u[i];
+            }
+            cx->have_q_ref = 1;
+            unlock(&cx->mutex);
+            break;
+        default:
+            SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
+        }
+    }
+
+
+    aa_mem_region_local_pop( msg );
 
     return ACH_OK;
 }
 
+enum ach_status periodic( void *cx ) {
+    return ACH_OK;
+}
 
-/* enum ach_status periodic( void *_cx ) */
-/* { */
-/*     SNS_LOG(LOG_DEBUG, "periodic handler\n"); */
+void* sim_start(void *cx)
+{
+    sim((struct cx*)cx);
+    return NULL;
+}
 
-/*     struct cx *cx = (struct cx*)_cx; */
+void sim(struct cx *cx_)
+{
+    struct cx *cx = (struct cx*)cx_;
+    while( !sns_cx.shutdown) {
+        lock(&cx->mutex);
+        if( cx->have_q_ref ) {
+            AA_MEM_CPY( cx->q_act, cx->q_ref, cx->n_q );
+            if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
+            cx->have_q_ref = 0;
+        }
+        unlock(&cx->mutex);
+        // TODO: sleep better
+        usleep(100);
+    }
+}
 
-/*     struct timespec now; */
-/*     clock_gettime( ACH_DEFAULT_CLOCK, &now ); */
-/*     for( size_t i = 0; i < cx->n; i++ ) { */
-/*         struct mplex_input *m = cx->in + i; */
-/*         if( m->msg && ! sns_msg_is_expired(m->msg, &now) ) { */
-/*             // found the active message */
-/*             if( m->updated ) { */
-/*                 SNS_LOG(LOG_DEBUG+1, "Sending output from %s\n", m->name ); */
-/*                 enum ach_status r = ach_put( &cx->out, m->msg, m->frame_size ); */
-/*                 SNS_REQUIRE( ACH_OK == r, "Could not put output message: %s\n", */
-/*                              ach_result_to_string(r) ); */
-/*             } // else nothing new to send */
-/*             break; */
-/*         } */
-/*     } */
-
-/*     /\* Mark messages as un-updated *\/ */
-/*     for( size_t i = 0; i < cx->n; i++ ) { */
-/*         cx->in[i].updated = 0; */
-/*     } */
-
-/*     return ACH_OK; */
-/* } */
+void lock(pthread_mutex_t *mutex)
+{
+    if( pthread_mutex_lock(mutex) ) {
+        SNS_LOG(LOG_ERR, "Could not lock mutex: `%s'", strerror(errno));
+    }
+}
+void unlock(pthread_mutex_t *mutex)
+{
+    if( pthread_mutex_unlock(mutex) ) {
+        SNS_LOG(LOG_ERR, "Could not lock mutex: `%s'", strerror(errno));
+    }
+}

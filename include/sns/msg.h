@@ -273,7 +273,7 @@ sns_msg_region_get( ach_channel_t *chan, struct aa_mem_region *region,
         msg->header.n = n;                                              \
     }                                                                   \
     /* alloc */                                                         \
-    /* Allocate message in heat */                                      \
+    /* Allocate message in heap */                                      \
     static inline struct type*                                          \
     type ## _heap_alloc                                                 \
     ( uint32_t n )                                                      \
@@ -530,6 +530,12 @@ enum sns_motor_mode {
 
     SNS_MOTOR_MODE_POS_OFFSET = 16,
 };
+
+/**
+ * Return string describing the motor mode.
+ */
+AA_API const char *
+sns_motor_mode_str( enum sns_motor_mode mode );
 
 /**
  * Message type for motor commands

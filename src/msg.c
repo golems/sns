@@ -306,6 +306,38 @@ void sns_msg_tf_dx_dump ( FILE *out, const struct sns_msg_tf_dx *msg ) {
     fprintf( out, "\n" );
 }
 
+
+
+/*---- motor_ref ----*/
+const char *
+sns_motor_mode_str( enum sns_motor_mode mode )
+{
+    switch( mode ) {
+    case SNS_MOTOR_MODE_HALT:
+        return "halt";
+        break;
+    case SNS_MOTOR_MODE_POS:
+        return "position";
+        break;
+    case SNS_MOTOR_MODE_VEL:
+        return "velocity";
+        break;
+    case SNS_MOTOR_MODE_TORQ:
+        return "torque";
+        break;
+    case SNS_MOTOR_MODE_CUR:
+        return "current";
+        break;
+    case SNS_MOTOR_MODE_POS_OFFSET:
+        return "position offset";
+        break;
+    case SNS_MOTOR_MODE_RESET:
+        return "reset";
+        break;
+    }
+    return "?";
+};
+
 /*---- motor_ref ----*/
 struct sns_msg_motor_ref *sns_msg_motor_ref_alloc ( uint64_t n ) {
     return sns_msg_motor_ref_heap_alloc( (uint32_t)n );
