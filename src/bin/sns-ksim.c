@@ -61,7 +61,6 @@ struct cx {
 
     struct aa_rx_sg *scenegraph;
 
-    pthread_mutex_t mutex;
 
     double *q_ref;
     double *dq_ref;
@@ -78,12 +77,9 @@ struct cx {
     struct timespec period;
 };
 
-void lock(pthread_mutex_t *mutex);
-void unlock(pthread_mutex_t *mutex);
 void io(struct cx *cx);
 void* io_start(void *cx);
-void sim(struct cx *cx);
-void* sim_start(void *cx);
+enum ach_status simulate( void *cx_ );
 
 enum ach_status handle( void *cx, struct ach_channel *channel );
 enum ach_status periodic( void *cx );
@@ -199,13 +195,7 @@ int main(int argc, char **argv)
 
 
     // Start threads
-    pthread_t sim_thread, io_thread;
-    if( pthread_mutex_init(&cx.mutex, NULL) ) {
-        SNS_DIE("Could not init mutex: `%s'", strerror(errno));
-    }
-    if( pthread_create(&sim_thread, NULL, sim_start, &cx) ) {
-        SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
-    }
+    pthread_t io_thread;
     if( pthread_create(&io_thread, NULL, io_start, &cx) ) {
         SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
     }
@@ -218,11 +208,8 @@ int main(int argc, char **argv)
 
     // Stop threads
     sns_cx.shutdown = 1;
-    if( pthread_join(sim_thread, NULL) ) {
+    if( pthread_join(io_thread, NULL) ) {
         SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
-    }
-    if( pthread_mutex_destroy(&cx.mutex) ) {
-        SNS_LOG(LOG_ERR, "Could not destroy mutex: `%s'", strerror(errno));
     }
 
     return 0;
@@ -240,8 +227,8 @@ void io(struct cx *cx) {
         errno = 0;
         printf("evhandle\n");
         enum ach_status r = ach_evhandle( cx->handlers, cx->n_ref,
-                                          &cx->period, periodic, cx,
-                                          ACH_EV_O_PERIODIC_INPUT );
+                                          &cx->period, simulate, cx,
+                                          ACH_EV_O_PERIODIC_TIMEOUT );
         if(sns_cx.shutdown) break;
         SNS_REQUIRE( ACH_OK == r,
                      "Could not handle events: %s, %s\n",
@@ -278,12 +265,10 @@ enum ach_status handle( void *cx_, struct ach_channel *channel )
         SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
         switch(msg->mode) {
         case SNS_MOTOR_MODE_POS:
-            lock(&cx->mutex);
             for( size_t i = 0; i < cx->n_q; i ++ ) {
                 cx->q_ref[i] = msg->u[i];
             }
             cx->have_q_ref = 1;
-            unlock(&cx->mutex);
             break;
         default:
             SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
@@ -296,41 +281,12 @@ enum ach_status handle( void *cx_, struct ach_channel *channel )
     return ACH_OK;
 }
 
-enum ach_status periodic( void *cx ) {
-    return ACH_OK;
-}
-
-void* sim_start(void *cx)
-{
-    sim((struct cx*)cx);
-    return NULL;
-}
-
-void sim(struct cx *cx_)
-{
+enum ach_status simulate( void *cx_ ) {
     struct cx *cx = (struct cx*)cx_;
-    while( !sns_cx.shutdown) {
-        lock(&cx->mutex);
-        if( cx->have_q_ref ) {
-            AA_MEM_CPY( cx->q_act, cx->q_ref, cx->n_q );
-            if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
-            cx->have_q_ref = 0;
-        }
-        unlock(&cx->mutex);
-        // TODO: sleep better
-        usleep(100);
+    if( cx->have_q_ref ) {
+        AA_MEM_CPY( cx->q_act, cx->q_ref, cx->n_q );
+        if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
+        cx->have_q_ref = 0;
     }
-}
-
-void lock(pthread_mutex_t *mutex)
-{
-    if( pthread_mutex_lock(mutex) ) {
-        SNS_LOG(LOG_ERR, "Could not lock mutex: `%s'", strerror(errno));
-    }
-}
-void unlock(pthread_mutex_t *mutex)
-{
-    if( pthread_mutex_unlock(mutex) ) {
-        SNS_LOG(LOG_ERR, "Could not lock mutex: `%s'", strerror(errno));
-    }
+    return ACH_OK;
 }
