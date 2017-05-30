@@ -31,9 +31,10 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 
 #include <poll.h>
-#include <sns.h>
+#include "sns.h"
 #include <sns/event.h>
 #include <ach/experimental.h>
 #include <getopt.h>
@@ -98,8 +99,6 @@ enum ach_status simulate( struct cx *cx );
 
 int main(int argc, char **argv)
 {
-    sns_init();
-
     struct cx cx;
     AA_MEM_ZERO(&cx,1);
 
@@ -114,9 +113,11 @@ int main(int argc, char **argv)
     {
         int c = 0;
         opterr = 0;
-        while( (c = getopt( argc, argv, "s:o:i:n:h?V" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "s:o:i:n:h?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
-                SNS_OPTCASES
+                SNS_OPTCASES_VERSION("sns-ksim",
+                                     "Copyright (c) 2017, Rice University\n",
+                                     "Neil T. Dantam")
             case 's':
                 opt_scene_plugin = optarg;
                 break;
@@ -155,6 +156,7 @@ int main(int argc, char **argv)
             }
         }
     }
+    sns_init();
 
     /* state channel */
     SNS_REQUIRE( opt_chan_state, "Need output channel");
@@ -200,7 +202,7 @@ int main(int argc, char **argv)
     channels[cx.n_ref] = NULL;
     sns_sigcancel( channels, sns_sig_term_default );
 
-    SNS_LOG(LOG_INFO, "Simulation Frequeny: `%f'\n", opt_sim_frequecy);
+    SNS_LOG(LOG_INFO, "Simulation Frequency: %.3fkHz\n", opt_sim_frequecy/1e3);
     cx.period_sec = 1/opt_sim_frequecy;
     long period_ns = (long)(1e9 / opt_sim_frequecy);
 

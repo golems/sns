@@ -1,5 +1,53 @@
-Installation Instructions
-*************************
+Installation {#installation}
+============================
+
+[TOC]
+
+Dependencies
+============
+
+* [Amino] (https://github.com/golems/amino) provides robot kinematics
+  and an interface to motion planning.  TMSMT requires the following
+  optional dependencies of Amino, most of which may be installed via
+  the OS package manager; please see the Amino [INSTALL file]
+  (http://amino.kavrakilab.org/installation.html) for details.
+
+* [Ach] (https://github.com/golems/ach) provides real-time messaging support.
+
+Build Overview
+==============
+
+1. If you have obtained this package from the git repo, you need to
+   initialize the autotools build scripts.
+
+        autoreconf -i
+
+   This step is not necessary when you have obtained a distribution
+   tarball which already contains theautoconf-generated configure
+   script.
+
+2. Configure for your system.  To see optional features which may be
+   enabled or disabled, run:
+
+        ./configure --help
+
+   Then run configure (adding any flags you may need for your system):
+
+        ./configure
+
+3. Build:
+
+        make
+
+4. Install:
+
+        sudo make install
+
+*****************************************************************
+
+Generic Instructions for GNU Autotools {#installation_autotools}
+======================================
+
 
 Copyright (C) 1994, 1995, 1996, 1999, 2000, 2001, 2002, 2004, 2005,
 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
@@ -362,4 +410,3 @@ operates.
 
 `configure' also accepts some other, not widely useful, options.  Run
 `configure --help' for more details.
-

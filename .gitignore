@@ -72,3 +72,6 @@ Makefile.in
 /doc/man
 /doc/html
 /sns-ksim
+/doc/manual/
+/doc/doxygen_sqlite3.db
+/doc/logtest

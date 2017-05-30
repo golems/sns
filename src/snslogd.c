@@ -39,9 +39,8 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  *
  */
-/** Author: Neil Dantam
- */
 
+#include "config.h"
 #include "sns.h"
 #include <unistd.h>
 #include <syslog.h>
@@ -67,6 +66,22 @@ static const char *opt_console = "/dev/tty0";
 /* ---- */
 int main( int argc, char **argv ) {
     (void) argc; (void) argv;
+
+    {
+        for( int c; -1 != (c = getopt(argc, argv, "?" SNS_OPTSTRING)); ) {
+            switch(c) {
+                SNS_OPTCASES_VERSION("snslogd",
+                                     "Copyright (c) 2013, Georgia Tech Research Corporation\n",
+                                     "Neil T. Dantam")
+            case '?':
+                puts( "Usage: snslogd\n"
+                      "Handle logging for SNS daemons\n");
+                exit(EXIT_SUCCESS);
+            default:
+                SNS_DIE("Unknown Option: `%c'\n", c);
+            }
+        }
+    }
 
     sns_cx.verbosity = 10;
     sns_init();
@@ -126,7 +141,11 @@ static void process( int fd_beep, sns_msg_log_t *msg, size_t frame_size ) {
             msg->header.from_pid,
             sns_str_nullterm(msg->header.from_host, sizeof(msg->header.from_host)),
             sns_str_nullterm(msg->text, msg->header.n) );
-    beep(fd_beep, msg->priority);
+
+    /* Maybe beep */
+    if( fd_beep >= 0 ) {
+        beep(fd_beep, msg->priority);
+    }
 }
 
 static void beep( int fd, int priority ) {

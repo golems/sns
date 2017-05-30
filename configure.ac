@@ -78,22 +78,30 @@ m4_ifdef([APPEND_FLAG],
           APPEND_FLAG([-Wc++-compat])])
 
 dnl # Doxygen
-m4_ifdef([DX_INIT_DOXYGEN],
-         [DX_HTML_FEATURE(ON)
-          DX_PDF_FEATURE(OFF)
-          DX_PS_FEATURE(OFF)
-          DX_INIT_DOXYGEN(ach)],
-         [AM_CONDITIONAL([DX_COND_doc],   false)
-          AM_CONDITIONAL([DX_COND_html],  false)
-          AM_CONDITIONAL([DX_COND_chm],   false)
-          AM_CONDITIONAL([DX_COND_chi],   false)
-          AM_CONDITIONAL([DX_COND_rtf],   false)
-          AM_CONDITIONAL([DX_COND_xml],   false)
-          AM_CONDITIONAL([DX_COND_ps],    false)
-          AM_CONDITIONAL([DX_COND_pdf],   false)
-          AM_CONDITIONAL([DX_COND_latex], false)
-          AM_CONDITIONAL([DX_COND_man],   false)
-         ])
+
+AC_ARG_WITH([doxygen],
+            AS_HELP_STRING([--without-doxygen], [Disable doxygen support]),
+            [],
+            [with_doxygen=auto])
+AS_IF([test "x$with_doxygen" != xno],
+      [AC_CHECK_PROGS([DOXYGEN],[doxygen])])
+AS_IF([test "x$with_doxygen" = xyes -a "x$DOXYGEN" = x],
+      [AC_MSG_ERROR([Doxygen not found])])
+AM_CONDITIONAL([HAVE_DOXYGEN], [test "x$DOXYGEN" != x])
+
+
+
+AC_ARG_ENABLE([man],
+              [AS_HELP_STRING([--disable-man], [Do not build man pages])],
+              [],
+              [enable_man="yes"])
+
+AS_IF([test "x$enable_man" = xyes -a "x$build" = "x$host"],
+      [AC_CHECK_PROGS([HELP2MAN], [help2man])
+       AC_CHECK_PROGS([GROFF], [groff])])
+
+AM_CONDITIONAL([HAVE_HELP2MAN], [test x$HELP2MAN != x])
+AM_CONDITIONAL([HAVE_GROFF], [test x$GROFF != x])
 
 
 ## Amino ##
