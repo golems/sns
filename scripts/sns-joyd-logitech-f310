@@ -14,7 +14,7 @@
 # right-stick: 0x200
 # back:        0x400
 
-exec joyd -a 8                          \
+exec sns-joyd -a 8                      \
     -i 2 -0 -1 -s 0.5 -o 0.5            \
     -i 5 -0 -1  -s 0.5 -o 0.5           \
     $@

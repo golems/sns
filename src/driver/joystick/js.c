@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2009, Jon Olson
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -45,7 +45,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "include/js.h"
+#include "include/sns/joystick/js.h"
 
 #define MAX_JOYSTICKS 256
 #define JOYSTICK_DIR "/dev/input"
@@ -53,7 +53,7 @@
 
 static js_t *js_alloc() {
     js_t *js;
-   
+
     js = (js_t *)malloc(sizeof(js_t));
     if (js == NULL)
         return NULL;
@@ -99,7 +99,7 @@ js_t *js_open_first() {
         if (input == NULL)
             break; // Could just be end of list, but if we get end of list
                    // without returning, that IS a failure
-       
+
         unsigned int idx;
         if (sscanf(input->d_name, JOYSTICK_DIR "/js%u", &idx) > 0) {
             // Match
@@ -111,9 +111,9 @@ js_t *js_open_first() {
             if (js->fd < 0) {
                 free(js);
                 break;
-            } 
+            }
         }
-    } while (input != NULL);    
+    } while (input != NULL);
 
     closedir(inputs);
     return js; // Either a valid js or NULL
@@ -126,7 +126,7 @@ js_event_t *js_poll_event(js_t *js) {
     ssize_t len = read(js->fd, &event, sizeof(event));
     // I hope linux doesn't give us half the struct on EINTR, that would suck
     if (len < (int)sizeof(event))
-        return NULL;    
+        return NULL;
 
     return &event;
 }
@@ -139,7 +139,7 @@ int js_poll_state(js_t *js) {
 
         if (event == NULL)
             return -1;
-        
+
         switch (event->type) {
             case JS_EVENT_AXIS:
                 js->state.axes[event->number] = (double)event->value / 32768.0;
@@ -155,12 +155,12 @@ int js_poll_state(js_t *js) {
         fd.fd = js->fd;
         fd.events = POLLIN;
         fd.revents = 0;
-        more = poll(&fd, 1, 0); 
+        more = poll(&fd, 1, 0);
     } while (more);
 
     return 0;
 }
-    
+
 
 void js_close(js_t *js) {
     assert(js != NULL);
@@ -168,4 +168,3 @@ void js_close(js_t *js) {
     close(js->fd);
     free(js);
 }
-

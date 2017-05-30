@@ -761,6 +761,7 @@ INPUT                  = include \
                          doc/md/ReadMe.md \
                          doc/md/download.md \
                          doc/md/command.md \
+                         doc/md/driver.md \
                          doc/md/tutorial.md \
                          doc/md/daemon.md \
                          doc/md/mainpage.md

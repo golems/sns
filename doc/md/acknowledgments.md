@@ -3,6 +3,12 @@ Acknowledgments {#acknowledgments}
 * [Neil T. Dantam]
   (http://www.neil.dantam.name)
 
+* [Jonathan Scholz]
+  (https://scholar.google.com/citations?user=bwORIKIAAAAJ&hl=en)
+
+* [Jon Olson]
+  (https://github.com/jon)
+
 * [Zachary K. Kingston]
   (http://zacharykingston.me/)
 

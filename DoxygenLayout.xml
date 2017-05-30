@@ -14,6 +14,7 @@
       <tab type="user" visible="yes" title="Tutorial" url="@ref tutorial"/>
       <tab type="user" visible="yes" title="Commands" url="@ref command"/>
       <tab type="user" visible="yes" title="Daemons" url="@ref daemon"/>
+      <tab type="user" visible="yes" title="Drivers" url="@ref driver"/>
     </tab>
 
 

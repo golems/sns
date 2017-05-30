@@ -2,6 +2,8 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 EXTRA_DIST =
+bin_PROGRAMS =
+bin_SCRIPTS =
 
 include_HEADERS = include/sns.h
 pkginclude_HEADERS =                              \
@@ -67,15 +69,15 @@ libsns_msg_sdh_tactile_la_SOURCES = src/msg_plugin.c
 libsns_msg_sdh_tactile_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_sdh_tactile
 libsns_msg_sdh_tactile_la_LIBADD = libsns.la
 
-bin_PROGRAMS = snsdump snsplot sns-trylock
-
-
+bin_PROGRAMS += snsdump
 snsdump_SOURCES = src/snsdump.c
 snsdump_LDADD = libsns.la -lach -lamino
 
+bin_PROGRAMS += snsplot
 snsplot_SOURCES = src/snsplot.c
 snsplot_LDADD = libsns.la -lach -lamino
 
+bin_PROGRAMS += sns-trylock
 sns_trylock_SOURCES = src/sns-trylock.c
 
 
@@ -108,6 +110,15 @@ bin_PROGRAMS += sns-ksim
 sns_ksim_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
 sns_ksim_SOURCES = src/bin/sns-ksim.c
 sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
+
+
+
+bin_PROGRAMS += sns-joyd
+sns_joyd_SOURCES = src/driver/joystick/joyd.c src/driver/joystick/js.c
+sns_joyd_LDADD = libsns.la -lach -lamino
+
+bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
+
 
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
@@ -176,6 +187,12 @@ doc/sns-ksim.1: $(top_builddir)/sns-ksim $(top_srcdir)/configure.ac
 	$(MKDIR_P) doc
 	$(HELP2MAN) --version-option="-V" --no-info -n "Kinematic Simulator" $(top_builddir)/$< -o $@
 
+
+dist_man_MANS += doc/sns-joyd.1
+doc/sns-joyd.1: $(top_builddir)/sns-joyd $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) -l --no-info -n "Joystick Driver" $(top_builddir)/$< -o $@
+
 if HAVE_GROFF
 
 html_mans =
@@ -203,6 +220,11 @@ doc/manual/bin/snslogd.html: doc/snslogd.1
 
 html_mans += doc/manual/bin/sns-ksim.html
 doc/manual/bin/sns-ksim.html: doc/sns-ksim.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/sns-joyd.html
+doc/manual/bin/sns-joyd.html: doc/sns-joyd.1
 	$(MKDIR_P) doc/manual/bin
 	$(GROFF) -mandoc -Thtml < $< > $@
 

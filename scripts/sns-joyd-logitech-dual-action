@@ -2,4 +2,4 @@
 
 # Run joyd with options for the Logitech Dual Action Gamepad
 
-exec joyd -a 6 $@
+exec sns-joyd -a 6 $@

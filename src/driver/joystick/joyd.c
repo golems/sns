@@ -43,13 +43,16 @@
 /** Author: jscholz, Neil Dantam
  */
 
+#include "config.h"
+
 #include <argp.h>
 #include <syslog.h>
 #include <sns.h>
 #include <signal.h>
 #include <unistd.h>
 #include <inttypes.h>
-#include "js.h"
+
+#include "sns/joystick/js.h"
 
 
 // context struct
@@ -156,13 +159,21 @@ static struct argp_option options[] = {
 /// argp parsing function
 static int parse_opt( int key, char *arg, struct argp_state *state);
 /// argp program version
-const char *argp_program_version = "jachd-0.0.1";
+const char *argp_program_version = "joyd-" PACKAGE_VERSION ;
 /// argp program arguments documentation
 static char args_doc[] = "";
 /// argp program doc line
 static char doc[] = "reads from linux joystick and pushes out ach messages";
 /// argp object
-static struct argp argp = {options, parse_opt, args_doc, doc, NULL, NULL, NULL };
+static struct argp argp = {
+    .options = options,
+    .parser = parse_opt,
+    .args_doc = args_doc,
+    .doc = doc,
+    .children = NULL,
+    .help_filter = NULL,
+    .argp_domain = NULL
+};
 
 
 static int parse_opt( int key, char *optarg, struct argp_state *state) {
