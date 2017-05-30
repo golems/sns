@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Run joyd with options for the Logitech F310 Gamepad
+# Kernel sees as "Generic X-Box pad"
+
+# A:           0x001
+# B:           0x002
+# X:           0x004
+# Y:           0x008
+# lb:          0x010
+# rb:          0x020
+# start:       0x040
+# left-stick:  0x100
+# right-stick: 0x200
+# back:        0x400
+
+exec joyd -a 8                          \
+    -i 2 -0 -1 -s 0.5 -o 0.5            \
+    -i 5 -0 -1  -s 0.5 -o 0.5           \
+    $@
