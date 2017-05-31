@@ -74,17 +74,13 @@ struct cx {
 
     struct aa_rx_win * win;
 
-    struct ach_evhandler *handlers;
+    struct sns_evhandler *handlers;
     struct timespec period;
     double period_sec;
 };
 
-
-// Reference input handler
-enum ach_status handle( void *cx, struct ach_channel *channel );
-
 // Handle a message
-enum ach_status handle_msg( void *cx, enum ach_status status, size_t frame_size, void *msg );
+enum ach_status handle_msg( void *cx, void *msg, size_t msg_size );
 
 // Run io
 void io(struct cx *cx);
@@ -175,11 +171,10 @@ int main(int argc, char **argv)
     cx.q_ref = AA_NEW_AR(double,cx.n_q);
     cx.dq_ref = AA_NEW_AR(double,cx.n_q);
 
-    cx.handlers = AA_NEW_AR( struct ach_evhandler, cx.n_ref);
+    cx.handlers = AA_NEW_AR( struct sns_evhandler, cx.n_ref);
     cx.in = AA_NEW_AR(struct in_cx, cx.n_ref);
 
     // Initialize arrays
-    struct ach_channel *channels[cx.n_ref+1];
     for( size_t j = cx.n_ref; j; j--) {
         size_t i = j-1;
 
@@ -191,16 +186,14 @@ int main(int argc, char **argv)
 
         // open channel
         sns_chan_open( &cx.in[i].channel, cx.in[i].name, NULL );
-        channels[i] = &cx.in[i].channel;
 
         // init handler
         cx.handlers[i].channel = &cx.in[i].channel;
         cx.handlers[i].context = cx.in+i;
-        cx.handlers[i].handler = handle;
+        cx.handlers[i].handler = handle_msg;
+        cx.handlers[i].ach_options = ACH_O_LAST;
 
     }
-    channels[cx.n_ref] = NULL;
-    sns_sigcancel( channels, sns_sig_term_default );
 
     SNS_LOG(LOG_INFO, "Simulation Frequency: %.3fkHz\n", opt_sim_frequecy/1e3);
     cx.period_sec = 1/opt_sim_frequecy;
@@ -245,87 +238,54 @@ void* io_start(void *cx) {
 
 void io(struct cx *cx) {
     // Run Loop
-    while( !sns_cx.shutdown) {
-        errno = 0;
-        enum ach_status r = ach_evhandle( cx->handlers, cx->n_ref,
-                                          &cx->period, io_periodic, cx,
-                                          ACH_EV_O_PERIODIC_TIMEOUT );
-        if(sns_cx.shutdown) break;
-        SNS_REQUIRE( ACH_OK == r,
-                     "Could not handle events: %s, %s\n",
-                     ach_result_to_string(r),
-                     strerror(errno) );
-    }
-
+    enum ach_status r = sns_evhandle( cx->handlers, cx->n_ref,
+                                      &cx->period, io_periodic, cx,
+                                      sns_sig_term_default,
+                                      ACH_EV_O_PERIODIC_TIMEOUT );
+    SNS_REQUIRE( sns_cx.shutdown || (ACH_OK == r),
+                 "Could not handle events: %s, %s\n",
+                 ach_result_to_string(r),
+                 strerror(errno) );
     // stop window
     if( cx->win ) {
         aa_rx_win_stop(cx->win);
     }
 }
 
-
-enum ach_status handle( void *cx, struct ach_channel *channel )
-{
-    size_t frame_size;
-    void *msg;
-    enum ach_status r = sns_msg_local_get( channel, &msg,
-                                           &frame_size, NULL, ACH_O_LAST );
-
-    enum ach_status result = handle_msg( cx, r, frame_size, msg);
-
-    aa_mem_region_local_pop(msg);
-    return result;
-}
-
-
-enum ach_status handle_msg( void *cx_, enum ach_status status, size_t frame_size, void *msg_ )
+enum ach_status handle_msg( void *cx_, void *msg_, size_t frame_size )
 {
     struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref *)msg_;
     struct in_cx *cx_in = (struct in_cx*)cx_;
     struct cx *cx = cx_in->cx;
 
-    switch(status) {
-
-    case ACH_STALE_FRAMES:
-    case ACH_CANCELED:
-        return status;
-
-    case ACH_OK:
-    case ACH_MISSED_FRAME: {
-        if( frame_size < sizeof(struct sns_msg_header) ) {
-            SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
-        } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
-            SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
-        } else if( msg->header.n != cx->n_q ) {
-            SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
-        } else {
-            // Message looks OK
-            SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
-                switch(msg->mode) {
-                case SNS_MOTOR_MODE_POS:
-                    for( size_t i = 0; i < cx->n_q; i ++ ) {
-                        cx->q_ref[i] = msg->u[i];
-                    }
-                    cx->have_q_ref = 1;
-                    break;
-                case SNS_MOTOR_MODE_VEL:
-                    for( size_t i = 0; i < cx->n_q; i ++ ) {
-                        cx->dq_ref[i] = msg->u[i];
-                    }
-                    cx->have_dq_ref = 1;
-                    break;
-                default:
-                    SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
+    if( frame_size < sizeof(struct sns_msg_header) ) {
+        SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
+    } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
+        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+    } else if( msg->header.n != cx->n_q ) {
+        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+    } else {
+        // Message looks OK
+        SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
+            switch(msg->mode) {
+            case SNS_MOTOR_MODE_POS:
+                for( size_t i = 0; i < cx->n_q; i ++ ) {
+                    cx->q_ref[i] = msg->u[i];
                 }
-        }
-
-        return ACH_OK;
+                cx->have_q_ref = 1;
+                break;
+            case SNS_MOTOR_MODE_VEL:
+                for( size_t i = 0; i < cx->n_q; i ++ ) {
+                    cx->dq_ref[i] = msg->u[i];
+                }
+                cx->have_dq_ref = 1;
+                break;
+            default:
+                SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
+            }
     }
 
-    default:
-        SNS_DIE("Could not get ach message on: %s\n", ach_result_to_string(status) );
-        return status;
-    }
+    return ACH_OK;
 }
 
 enum ach_status io_periodic( void *cx_ )
