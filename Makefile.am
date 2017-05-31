@@ -111,6 +111,9 @@ sns_ksim_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
 sns_ksim_SOURCES = src/bin/sns-ksim.c
 sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
 
+bin_PROGRAMS += sns-teleopd
+sns_teleopd_SOURCES = src/bin/sns-teleopd.c
+sns_teleopd_LDADD = libsns.la -lach-experimental -lach -lamino
 
 
 bin_PROGRAMS += sns-joyd
@@ -193,6 +196,11 @@ doc/sns-joyd.1: $(top_builddir)/sns-joyd $(top_srcdir)/configure.ac
 	$(MKDIR_P) doc
 	$(HELP2MAN) -l --no-info -n "Joystick Driver" $(top_builddir)/$< -o $@
 
+dist_man_MANS += doc/sns-teleopd.1
+doc/sns-teleopd.1: $(top_builddir)/sns-teleopd $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "Teleoperation Daemon" $(top_builddir)/$< -o $@
+
 if HAVE_GROFF
 
 html_mans =
@@ -225,6 +233,11 @@ doc/manual/bin/sns-ksim.html: doc/sns-ksim.1
 
 html_mans += doc/manual/bin/sns-joyd.html
 doc/manual/bin/sns-joyd.html: doc/sns-joyd.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/sns-teleopd.html
+doc/manual/bin/sns-teleopd.html: doc/sns-teleopd.1
 	$(MKDIR_P) doc/manual/bin
 	$(GROFF) -mandoc -Thtml < $< > $@
 

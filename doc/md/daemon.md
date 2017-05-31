@@ -32,3 +32,17 @@ sns-ksim&mdash;Kinematic Simulator {#daemon_ksim}
 
 </iframe>
 @endhtmlonly
+
+sns-teleopd&mdash;Teleoperation Daemon {#daemon_teleopd}
+=============================================
+
+@sa [sns man page] (bin/sns-teleopd.html)
+
+@htmlonly
+<iframe src="bin/sns-teleopd.html"
+        height="800"
+        width="75%"
+        >
+
+</iframe>
+@endhtmlonly
