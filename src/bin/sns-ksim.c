@@ -39,6 +39,8 @@
 #include <ach/experimental.h>
 #include <getopt.h>
 
+#include <cblas.h>
+
 #include <amino/rx/rxtype.h>
 #include <amino/rx/scenegraph.h>
 #include <amino/rx/scene_plugin.h>
@@ -67,16 +69,18 @@ struct cx {
     double *dq_ref;
     int have_q_ref;
     int have_dq_ref;
+    struct timespec t;
 
     double *q_act;
     double *dq_act;
     size_t n_q;
+    uint64_t seq;
 
     struct aa_rx_win * win;
 
     struct sns_evhandler *handlers;
     struct timespec period;
-    double period_sec;
+
 };
 
 // Handle a message
@@ -89,6 +93,8 @@ void* io_start(void *cx);
 
 // Call periodically from io thread
 enum ach_status io_periodic( void *cx );
+
+void put_state( struct cx *cx );
 
 // Perform a simulation step
 enum ach_status simulate( struct cx *cx );
@@ -171,6 +177,8 @@ int main(int argc, char **argv)
     cx.q_ref = AA_NEW_AR(double,cx.n_q);
     cx.dq_ref = AA_NEW_AR(double,cx.n_q);
 
+    clock_gettime(ACH_DEFAULT_CLOCK, &cx.t);
+
     cx.handlers = AA_NEW_AR( struct sns_evhandler, cx.n_ref);
     cx.in = AA_NEW_AR(struct in_cx, cx.n_ref);
 
@@ -196,7 +204,6 @@ int main(int argc, char **argv)
     }
 
     SNS_LOG(LOG_INFO, "Simulation Frequency: %.3fkHz\n", opt_sim_frequecy/1e3);
-    cx.period_sec = 1/opt_sim_frequecy;
     long period_ns = (long)(1e9 / opt_sim_frequecy);
 
     cx.period.tv_sec = (time_t)period_ns / (time_t)1e9;
@@ -243,7 +250,7 @@ void io(struct cx *cx) {
                                       sns_sig_term_default,
                                       ACH_EV_O_PERIODIC_TIMEOUT );
     SNS_REQUIRE( sns_cx.shutdown || (ACH_OK == r),
-                 "Could not handle events: %s, %s\n",
+                 "Could asdf not handle events: %s, %s\n",
                  ach_result_to_string(r),
                  strerror(errno) );
     // stop window
@@ -291,9 +298,10 @@ enum ach_status handle_msg( void *cx_, void *msg_, size_t frame_size )
 enum ach_status io_periodic( void *cx_ )
 {
     struct cx *cx = (struct cx*)cx_;
-
     // Run simulation
     simulate(cx);
+    put_state(cx);
+
 
     // Update display
     if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
@@ -309,20 +317,48 @@ enum ach_status io_periodic( void *cx_ )
 
 enum ach_status simulate( struct cx *cx )
 {
+    struct timespec now;
+    clock_gettime(ACH_DEFAULT_CLOCK, &now);
+    double dt = aa_tm_timespec2sec( aa_tm_sub(now, cx->t) );
+    cx->t = now;
+    int n_q = (int)cx->n_q;
+
     // Set Refs
     if( cx->have_q_ref ) {
         // Set ref pos
-        AA_MEM_CPY( cx->q_act, cx->q_ref, cx->n_q );
-        AA_MEM_ZERO( cx->dq_act, cx->n_q );
+        cblas_dcopy( n_q, cx->q_ref, 1, cx->q_act, 1 );
+        AA_MEM_ZERO(cx->dq_act, cx->n_q);
     } else if( cx->have_dq_ref ) {
         // Set ref vel
-        AA_MEM_CPY( cx->dq_act, cx->dq_ref, cx->n_q );
+        cblas_dcopy( n_q, cx->dq_ref, 1, cx->dq_act, 1 );
     }
     cx->have_q_ref = 0;
     cx->have_dq_ref = 0;
 
     // Integrate (euler step)
-    aa_la_axpy( cx->n_q, cx->period_sec, cx->dq_act, cx->q_act );
+    cblas_daxpy(n_q, dt, cx->dq_act, 1, cx->q_act, 1 );
 
     return ACH_OK;
+}
+
+void put_state( struct cx *cx )
+{
+    struct sns_msg_motor_state *msg = sns_msg_motor_state_local_alloc((uint32_t)cx->n_q);
+
+    sns_msg_set_time(&msg->header, &cx->t, (int64_t)1e9);
+    msg->header.seq = cx->seq++;
+
+    double *pos = sns_msg_motor_state_pos(msg);
+    double *vel = sns_msg_motor_state_vel(msg);
+    int incpos = (int)sns_msg_motor_state_incpos(msg);
+    int incvel = (int)sns_msg_motor_state_incvel(msg);
+    int n_q = (int)cx->n_q;
+
+    cblas_dcopy( n_q, cx->q_act, 1, pos, incpos );
+    cblas_dcopy( n_q, cx->dq_act, 1, vel, incvel );
+
+    sns_msg_motor_state_put(&cx->state_out, msg);
+
+    aa_mem_region_local_pop(msg);
+
 }
