@@ -1,3 +1,5 @@
+License {#license}
+=======
 Copyright (c) 2013-2014, Georgia Tech Research Corporation
 
 Copyright (c) 2015-2017, Rice University

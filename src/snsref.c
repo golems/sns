@@ -68,29 +68,20 @@ static void posarg( char *arg, int i ) {
 }
 
 int main( int argc, char **argv ) {
-    sns_init();
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?pdRHPD" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "?pdRHPD" SNS_OPTSTRING )); ) {
         switch(c) {
-            SNS_OPTCASES
+            SNS_OPTCASES_VERSION("snsref",
+                                 "Copyright (c) 2013, Georgia Tech Research Corporation\n",
+                                 "Neil T. Dantam")
         case 'p': opt_mode = SNS_MOTOR_MODE_POS; break;
         case 'd': opt_mode = SNS_MOTOR_MODE_VEL; break;
         case 'R': opt_mode = SNS_MOTOR_MODE_RESET; break;
         case 'H': opt_mode = SNS_MOTOR_MODE_HALT; break;
         case 'P': opt_mode = SNS_MOTOR_MODE_POS_OFFSET; break;
         case 'D': opt_degrees = 1; break;
-        case 'V':   /* version     */
-            puts( "snsref " PACKAGE_VERSION "\n"
-                  "\n"
-                  "Copyright (c) 2013, Georgia Tech Research Corporation\n"
-                  "This is free software; see the source for copying conditions.  There is NO\n"
-                  "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
-                  "\n"
-                  "Written by Neil T. Dantam"
-                );
-            exit(EXIT_SUCCESS);
         case '?':
             puts( "Usage: snsref [OPTIONS] channel x0 x1 ... xn\n"
                   "Send a motor referece command\n"
@@ -116,6 +107,8 @@ int main( int argc, char **argv ) {
     while( optind < argc ) {
         posarg(argv[optind++], i++);
     }
+
+    sns_init();
 
     SNS_REQUIRE( opt_channel, "snsref: missing channel.\nTry `snsref -?' for more information\n" );
 

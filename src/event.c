@@ -70,7 +70,13 @@ sns_evhandle_fun( void *_cx, ach_channel_t *channel )
     return sns_evhandle_impl(cx, channel, NULL, cx->ach_options);
 }
 
-
+static void check_evhandle_result( enum ach_status r )
+{
+    SNS_REQUIRE( ach_status_match(r, ACH_MASK_OK | ACH_MASK_CANCELED | ACH_MASK_TIMEOUT),
+                 "asdf Could not handle events: %s, %s\n",
+                 ach_result_to_string(r),
+                 strerror(errno) );
+}
 enum ach_status ACH_WARN_UNUSED
 sns_evhandle( struct sns_evhandler *handlers,
               size_t n,
@@ -98,12 +104,11 @@ sns_evhandle( struct sns_evhandler *handlers,
             enum ach_status r = sns_evhandle_impl( handlers, handlers->channel,
                                                    period, handlers->ach_options | ACH_O_RELTIME | ACH_O_WAIT );
             if(sns_cx.shutdown) break;
-            SNS_REQUIRE( ACH_OK == r,
-                         "Could not handle events: %s, %s\n",
-                         ach_result_to_string(r),
-                         strerror(errno) );
+            check_evhandle_result(r);
+            if( periodic_handler ) {
+                periodic_handler( periodic_context );
+            }
         }
-
     } else {
         /* multiple channels, use ach event loop */
         struct ach_evhandler ach_handlers[n];
@@ -119,10 +124,8 @@ sns_evhandle( struct sns_evhandler *handlers,
                                               period, periodic_handler, periodic_context,
                                               options );
             if(sns_cx.shutdown) break;
-            SNS_REQUIRE( ACH_OK == r,
-                         "Could not handle events: %s, %s\n",
-                         ach_result_to_string(r),
-                         strerror(errno) );
+            check_evhandle_result(r);
+
         }
     }
 

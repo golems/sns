@@ -72,26 +72,17 @@ static void posarg( char *arg, int i ) {
 }
 
 int main( int argc, char **argv ) {
-    sns_init();
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "V?hHf:" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "?hHf:" SNS_OPTSTRING)); ) {
         switch(c) {
-            SNS_OPTCASES
+            SNS_OPTCASES_VERSION("snsdump",
+                                 "Copyright (c) 2013, Georgia Tech Research Corporation\n",
+                                 "Neil T. Dantam")
         case 'f':
             opt_freq = atof(optarg);
             break;
-        case 'V':   /* version     */
-            puts( "snsdump " PACKAGE_VERSION "\n"
-                  "\n"
-                  "Copyright (c) 2013, Georgia Tech Research Corporation\n"
-                  "This is free software; see the source for copying conditions.  There is NO\n"
-                  "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
-                  "\n"
-                  "Written by Neil T. Dantam"
-                );
-            exit(EXIT_SUCCESS);
         case '?':   /* help     */
         case 'h':
         case 'H':
@@ -119,6 +110,8 @@ int main( int argc, char **argv ) {
     while( optind < argc ) {
         posarg(argv[optind++], i++);
     }
+
+    sns_init();
 
     SNS_REQUIRE( opt_channel, "snsdump: missing channel.\nTry `snsdump -H' for more information\n" );
     SNS_REQUIRE( opt_type, "snsdump: missing type.\nTry `snsdump -H' for more information\n" );

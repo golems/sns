@@ -70,7 +70,7 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "01234568V?hH" SNS_OPTSTRING)); ) {
+    for( int c; -1 != (c = getopt(argc, argv, "012345678V?hH" SNS_OPTSTRING)); ) {
         switch(c) {
             SNS_OPTCASES
         case 'V':   /* version     */

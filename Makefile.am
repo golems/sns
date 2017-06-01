@@ -1,6 +1,10 @@
 ACLOCAL_AMFLAGS = -Im4
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
+EXTRA_DIST =
+bin_PROGRAMS =
+bin_SCRIPTS =
+
 include_HEADERS = include/sns.h
 pkginclude_HEADERS =        \
 	include/sns/msg.h         \
@@ -65,15 +69,15 @@ libsns_msg_sdh_tactile_la_SOURCES = src/msg_plugin.c
 libsns_msg_sdh_tactile_la_CFLAGS = $(CFLAGS) -DSNS_MSG_PLUGIN_TYPE=sns_msg_sdh_tactile
 libsns_msg_sdh_tactile_la_LIBADD = libsns.la
 
-bin_PROGRAMS = snsdump snsplot sns-trylock
-
-
+bin_PROGRAMS += snsdump
 snsdump_SOURCES = src/snsdump.c
 snsdump_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
+bin_PROGRAMS += snsplot
 snsplot_SOURCES = src/snsplot.c
 snsplot_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
+bin_PROGRAMS += sns-trylock
 sns_trylock_SOURCES = src/sns-trylock.c
 
 
@@ -101,8 +105,149 @@ bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
 snsmplex_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
+
+bin_PROGRAMS += sns-ksim
+sns_ksim_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
+sns_ksim_SOURCES = src/bin/sns-ksim.c
+sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
+
+bin_PROGRAMS += sns-teleopd
+sns_teleopd_SOURCES = src/bin/sns-teleopd.c
+sns_teleopd_LDADD = libsns.la -lach-experimental -lach -lamino
+
+
+bin_PROGRAMS += sns-joyd
+sns_joyd_SOURCES = src/driver/joystick/joyd.c src/driver/joystick/js.c
+sns_joyd_LDADD = libsns.la -lach -lamino
+
+bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
+
+
 install-exec-hook:
 	ln -sf $(DESTDIR)$(init_ddir)/sns$(EXEEXT) \
 	       $(DESTDIR)$(bindir)/sns$(EXEEXT)
 
-include doxygen.am
+
+
+doc/md/copying.md: $(top_srcdir)/COPYING $(top_srcdir)/doc/md/copying.md.header
+	$(MKDIR_P) doc/md/
+	cat $(top_srcdir)/doc/md/copying.md.header  \
+	    $(top_srcdir)/COPYING \
+	    > doc/md/copying.md
+
+
+doc/md/acknowledgments.md: $(top_srcdir)/AUTHORS $(top_srcdir)/doc/md/acknowledgments.md.header
+	$(MKDIR_P) doc/md/
+	cat $(top_srcdir)/doc/md/acknowledgments.md.header  \
+	    $(top_srcdir)/AUTHORS \
+	    > doc/md/acknowledgments.md
+
+
+if HAVE_DOXYGEN
+
+
+
+doxygen: Doxyfile doc/md/copying.md doc/md/acknowledgments.md
+	$(DOXYGEN)
+
+doc/manual: doxygen
+
+doc: doxygen
+	$(MKDIR_P) doc/manual/doc
+
+else
+
+doc/manual:
+	$(MKDIR_P) doc/manual
+
+endif
+
+if HAVE_HELP2MAN
+dist_man_MANS =
+
+dist_man_MANS += doc/sns.1
+doc/sns.1: scripts/sns $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option=--version-man --no-info -n "SNS Management Script" $(top_srcdir)/scripts/sns -o $@
+
+dist_man_MANS += doc/snsref.1
+doc/snsref.1: $(top_builddir)/snsref $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "Set motor reference" $(top_builddir)/$< -o $@
+
+dist_man_MANS += doc/snsdump.1
+doc/snsdump.1: $(top_builddir)/snsdump $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "Display human-readable messages" $(top_builddir)/$< -o $@
+
+dist_man_MANS += doc/snslogd.1
+doc/snslogd.1: $(top_builddir)/snslogd $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "SNS Logging Daemon" $(top_builddir)/$< -o $@
+
+dist_man_MANS += doc/sns-ksim.1
+doc/sns-ksim.1: $(top_builddir)/sns-ksim $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "Kinematic Simulator" $(top_builddir)/$< -o $@
+
+
+dist_man_MANS += doc/sns-joyd.1
+doc/sns-joyd.1: $(top_builddir)/sns-joyd $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) -l --no-info -n "Joystick Driver" $(top_builddir)/$< -o $@
+
+dist_man_MANS += doc/sns-teleopd.1
+doc/sns-teleopd.1: $(top_builddir)/sns-teleopd $(top_srcdir)/configure.ac
+	$(MKDIR_P) doc
+	$(HELP2MAN) --version-option="-V" --no-info -n "Teleoperation Daemon" $(top_builddir)/$< -o $@
+
+if HAVE_GROFF
+
+html_mans =
+
+html_mans += doc/manual/bin/sns.html
+doc/manual/bin/sns.html: doc/sns.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+
+html_mans += doc/manual/bin/snsref.html
+doc/manual/bin/snsref.html: doc/snsref.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/snsdump.html
+doc/manual/bin/snsdump.html: doc/snsdump.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/snslogd.html
+doc/manual/bin/snslogd.html: doc/snslogd.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/sns-ksim.html
+doc/manual/bin/sns-ksim.html: doc/sns-ksim.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/sns-joyd.html
+doc/manual/bin/sns-joyd.html: doc/sns-joyd.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+html_mans += doc/manual/bin/sns-teleopd.html
+doc/manual/bin/sns-teleopd.html: doc/sns-teleopd.1
+	$(MKDIR_P) doc/manual/bin
+	$(GROFF) -mandoc -Thtml < $< > $@
+
+EXTRA_DIST += $(html_mans)
+doxygen: $(html_mans)
+
+endif
+
+endif
+
+
+
+EXTRA_DIST += doc/manual

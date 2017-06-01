@@ -264,7 +264,7 @@ void sns_chan_close( ach_channel_t *chan );
 /**
  * Common arguments for SNS daemons
  */
-#define SNS_OPTSTRING "vq"
+#define SNS_OPTSTRING "vqV"
 
 /**
  * The getopt() cases for common arguments to SNS daemons.
@@ -273,6 +273,21 @@ void sns_chan_close( ach_channel_t *chan );
     case 'v': sns_cx.verbosity++; break; \
     case 'q': sns_cx.verbosity--; break;
 
+
+#define SNS_OPTCASES_VERSION(program, copyright, author)                \
+    SNS_OPTCASES                                                        \
+    case 'V':  {                                                        \
+        puts( program " " PACKAGE_VERSION "\n"                          \
+              "\n"                                                      \
+              copyright                                                 \
+              "This is free software; see the source for copying conditions.  There is NO\n" \
+              "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n" \
+              "\n"                                                      \
+              "Written by " author                                       \
+              "\n"                                                      \
+            );                                                          \
+        exit(EXIT_SUCCESS);                                             \
+    }
 
 #ifdef __cplusplus
 }

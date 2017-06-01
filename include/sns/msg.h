@@ -45,7 +45,7 @@
  * Returns true if struct timespec x is greater than struct timespec y
  */
 #define SNS_TIME_GT(x, y) (x.tv_sec > y.tv_sec || \
-	(x.tv_sec == y.tv_sec && x.tv_nsec > y.tv_nsec))
+        (x.tv_sec == y.tv_sec && x.tv_nsec > y.tv_nsec))
 
 #ifdef __cplusplus
 extern "C" {
@@ -273,7 +273,7 @@ sns_msg_region_get( ach_channel_t *chan, struct aa_mem_region *region,
         msg->header.n = n;                                              \
     }                                                                   \
     /* alloc */                                                         \
-    /* Allocate message in heat */                                      \
+    /* Allocate message in heap */                                      \
     static inline struct type*                                          \
     type ## _heap_alloc                                                 \
     ( uint32_t n )                                                      \
@@ -532,6 +532,12 @@ enum sns_motor_mode {
 };
 
 /**
+ * Return string describing the motor mode.
+ */
+AA_API const char *
+sns_motor_mode_str( enum sns_motor_mode mode );
+
+/**
  * Message type for motor commands
  */
 struct sns_msg_motor_ref {
@@ -574,15 +580,15 @@ struct sns_msg_tag_motor_ref {
      * Array of values and priority
      */
     struct {
-	    /**
-	     * The commanded value
-	     */
-	    sns_real_t val;
+            /**
+             * The commanded value
+             */
+            sns_real_t val;
 
-	    /**
-	     * The priority of this value
-	     */
-	    uint64_t priority;
+            /**
+             * The priority of this value
+             */
+            uint64_t priority;
     } u[1];
 };
 
@@ -607,6 +613,8 @@ struct sns_msg_motor_state {
      * The current mode of the motor
      */
     enum sns_motor_mode mode;
+
+
     /**
      * Array of motor state
      */
@@ -631,6 +639,42 @@ SNS_DEF_MSG_VAR( sns_msg_motor_state, X );
  * Declare message plugin functions.
  */
 SNS_DEC_MSG_PLUGINS( sns_msg_motor_state );
+
+// TODO: use increment/leading-dimension/offset to store optional values
+
+static inline double *
+sns_msg_motor_state_pos( struct sns_msg_motor_state *msg )
+{
+    return &msg->X[0].pos;
+}
+
+static inline double *
+sns_msg_motor_state_vel( struct sns_msg_motor_state *msg )
+{
+    return &msg->X[0].vel;
+}
+
+static inline size_t
+sns_msg_motor_state_incpos( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 2;
+}
+
+static inline size_t
+sns_msg_motor_state_incvel( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 2;
+}
+
+static inline uint32_t
+sns_msg_motor_state_count( struct sns_msg_motor_state *msg )
+{
+    return msg->header.n;
+}
+
+
 
 /************/
 /* JOYSTICK */

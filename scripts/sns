@@ -186,7 +186,12 @@ case "$1" in
     cat)
         cat  $SNS_TMPROOT/$2/out
         ;;
-    help)
+    --version-man)
+        cat <<EOF
+0.0
+EOF
+        ;;
+    help|--help|-\?)
         cat <<EOF
 Usage: sns COMMAND [arguments]
 Driver script for SNS daemons
@@ -201,8 +206,8 @@ Examples:
   sns cat ident                          Show output of program labeled "ident"
   sns kill ident                         Kill program labeled "ident"
   sns ls                                 Show which daemons are running
-  sns chown gpb                          Set log/pid directory owner gpb
-  sns chgrp gpb                          Set log/pid directory group gpb
+  sns chown gpb                          Set log/pid directory owner to \`gpb'
+  sns chgrp gpb                          Set log/pid directory group to \`gpb'
   sns help                               Show this menu
 EOF
         exit 0

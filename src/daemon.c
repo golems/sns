@@ -117,7 +117,12 @@ void sns_init( void ) {
     gethostname( sns_cx.host, SNS_HOSTNAME_LEN );
 
     /* log channel */
-    sns_chan_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
+    {
+        ach_status_t r = ach_open( &sns_cx.chan_log, SNS_LOG_CHANNEL, NULL );
+        SNS_REQUIRE( ACH_OK == r,
+                     "Error opening log channel: `%s'.  Is sns started?\n",
+                     ach_result_to_string(r));
+    }
 
     /* Check where to send error messages */
     if( isatty(STDERR_FILENO) ) {
