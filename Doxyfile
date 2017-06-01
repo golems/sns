@@ -760,10 +760,10 @@ INPUT                  = include \
                          doc/md/Installation.md \
                          doc/md/ReadMe.md \
                          doc/md/download.md \
-                         doc/md/command.md \
-                         doc/md/driver.md \
+                         doc/command.md \
+                         doc/driver.md \
+                         doc/daemon.md \
                          doc/md/tutorial.md \
-                         doc/md/daemon.md \
                          doc/md/mainpage.md
 
 # This tag can be used to specify the character encoding of the source files

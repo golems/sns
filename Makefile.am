@@ -201,50 +201,53 @@ doc/sns-teleopd.1: $(top_builddir)/sns-teleopd $(top_srcdir)/configure.ac
 	$(MKDIR_P) doc
 	$(HELP2MAN) --version-option="-V" --no-info -n "Teleoperation Daemon" $(top_builddir)/$< -o $@
 
-if HAVE_GROFF
 
 html_mans =
 
-html_mans += doc/manual/bin/sns.html
-doc/manual/bin/sns.html: doc/sns.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
 
+ROFFIT_PROC=roffit --bare < $< | sed -e 's/This HTML.*//' > $@
 
-html_mans += doc/manual/bin/snsref.html
-doc/manual/bin/snsref.html: doc/snsref.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/sns.html
+doc/sns.html: doc/sns.1
+	$(ROFFIT_PROC)
 
-html_mans += doc/manual/bin/snsdump.html
-doc/manual/bin/snsdump.html: doc/snsdump.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/snsref.html
+doc/snsref.html: doc/snsref.1
+	$(ROFFIT_PROC)
 
-html_mans += doc/manual/bin/snslogd.html
-doc/manual/bin/snslogd.html: doc/snslogd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/snsdump.html
+doc/snsdump.html: doc/snsdump.1
+	$(ROFFIT_PROC)
 
-html_mans += doc/manual/bin/sns-ksim.html
-doc/manual/bin/sns-ksim.html: doc/sns-ksim.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/snslogd.html
+doc/snslogd.html: doc/snslogd.1
+	$(ROFFIT_PROC)
 
-html_mans += doc/manual/bin/sns-joyd.html
-doc/manual/bin/sns-joyd.html: doc/sns-joyd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/sns-ksim.html
+doc/sns-ksim.html: doc/sns-ksim.1
+	$(ROFFIT_PROC)
 
-html_mans += doc/manual/bin/sns-teleopd.html
-doc/manual/bin/sns-teleopd.html: doc/sns-teleopd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_mans += doc/sns-joyd.html
+doc/sns-joyd.html: doc/sns-joyd.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/sns-teleopd.html
+doc/sns-teleopd.html: doc/sns-teleopd.1
+	$(ROFFIT_PROC)
+
+doc/daemon.md: doc/md/daemon.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
+doc/command.md: doc/md/command.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
+doc/driver.md: doc/md/driver.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
 
 EXTRA_DIST += $(html_mans)
-doxygen: $(html_mans)
+doxygen: $(html_mans) doc/daemon.md doc/command.md doc/driver.md
 
-endif
 
 endif
 
