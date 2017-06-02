@@ -34,19 +34,25 @@
 #include "config.h"
 
 #include <poll.h>
-#include "sns.h"
-#include <sns/event.h>
-#include <ach/experimental.h>
+
+
 #include <getopt.h>
 
 #include <cblas.h>
 
+#include <amino.h>
 #include <amino/rx/rxtype.h>
 #include <amino/rx/scenegraph.h>
 #include <amino/rx/scene_plugin.h>
+#include <amino/ct/state.h>
 
 #include <amino/rx/scene_gl.h>
 #include <amino/rx/scene_win.h>
+
+#include "sns.h"
+#include <sns/event.h>
+#include <ach/experimental.h>
+#include <sns/motor.h>
 
 struct cx;
 
@@ -71,8 +77,11 @@ struct cx {
     int have_dq_ref;
     struct timespec t;
 
-    double *q_act;
-    double *dq_act;
+    //double *q_act;
+    //double *dq_act;
+
+    struct aa_ct_state *state_act;
+
     size_t n_q;
     uint64_t seq;
 
@@ -172,8 +181,12 @@ int main(int argc, char **argv)
     SNS_REQUIRE( NULL != cx.scenegraph, "Could not load scene plugin");
     aa_rx_sg_init(cx.scenegraph);
     cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
-    cx.q_act = AA_NEW_AR(double,cx.n_q);
-    cx.dq_act = AA_NEW_AR(double,cx.n_q);
+
+    cx.state_act = AA_NEW0(struct aa_ct_state);
+    cx.state_act->q = AA_NEW_AR(double,cx.n_q);
+    cx.state_act->dq = AA_NEW_AR(double,cx.n_q);
+    cx.state_act->n_q = cx.n_q;
+
     cx.q_ref = AA_NEW_AR(double,cx.n_q);
     cx.dq_ref = AA_NEW_AR(double,cx.n_q);
 
@@ -304,7 +317,7 @@ enum ach_status io_periodic( void *cx_ )
 
 
     // Update display
-    if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->q_act );
+    if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->state_act->q );
 
     // check cancelation
     if( sns_cx.shutdown ) {
@@ -326,39 +339,25 @@ enum ach_status simulate( struct cx *cx )
     // Set Refs
     if( cx->have_q_ref ) {
         // Set ref pos
-        cblas_dcopy( n_q, cx->q_ref, 1, cx->q_act, 1 );
-        AA_MEM_ZERO(cx->dq_act, cx->n_q);
+        cblas_dcopy( n_q, cx->q_ref, 1, cx->state_act->q, 1 );
+        AA_MEM_ZERO(cx->state_act->dq, cx->n_q);
     } else if( cx->have_dq_ref ) {
         // Set ref vel
-        cblas_dcopy( n_q, cx->dq_ref, 1, cx->dq_act, 1 );
+        cblas_dcopy( n_q, cx->dq_ref, 1, cx->state_act->dq, 1 );
     }
     cx->have_q_ref = 0;
     cx->have_dq_ref = 0;
 
     // Integrate (euler step)
-    cblas_daxpy(n_q, dt, cx->dq_act, 1, cx->q_act, 1 );
+    cblas_daxpy(n_q, dt, cx->state_act->dq, 1, cx->state_act->q, 1 );
 
     return ACH_OK;
 }
 
 void put_state( struct cx *cx )
 {
-    struct sns_msg_motor_state *msg = sns_msg_motor_state_local_alloc((uint32_t)cx->n_q);
-
-    sns_msg_set_time(&msg->header, &cx->t, (int64_t)1e9);
-    msg->header.seq = cx->seq++;
-
-    double *pos = sns_msg_motor_state_pos(msg);
-    double *vel = sns_msg_motor_state_vel(msg);
-    int incpos = (int)sns_msg_motor_state_incpos(msg);
-    int incvel = (int)sns_msg_motor_state_incvel(msg);
-    int n_q = (int)cx->n_q;
-
-    cblas_dcopy( n_q, cx->q_act, 1, pos, incpos );
-    cblas_dcopy( n_q, cx->dq_act, 1, vel, incvel );
-
-    sns_msg_motor_state_put(&cx->state_out, msg);
-
-    aa_mem_region_local_pop(msg);
+    sns_motor_map_state_out( cx->state_act, NULL,
+                             &cx->t, (int64_t)1e9,
+                             &cx->state_out );
 
 }

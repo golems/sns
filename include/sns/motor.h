@@ -87,6 +87,15 @@ sns_motor_map_in( const struct sns_motor_map *M,
 
 
 /**
+ * Write state to channel, remapping if necessary.
+ */
+AA_API void
+sns_motor_map_state_out( const struct aa_ct_state *state,
+                         const struct sns_motor_map *M,
+                         const struct timespec *now, int64_t dur_ns,
+                         struct ach_channel *channel );
+
+/**
  * Destroy the motor map
  */
 void

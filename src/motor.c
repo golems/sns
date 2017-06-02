@@ -57,6 +57,43 @@ sns_motor_map_in( const struct sns_motor_map *M,
     }
 }
 
+AA_API void
+sns_motor_map_state_out( const struct aa_ct_state *state,
+                         const struct sns_motor_map *M,
+                         const struct timespec *now, int64_t dur_ns,
+                         struct ach_channel *channel )
+{
+    /* allocate */
+    struct sns_msg_motor_state *msg;
+    uint32_t n_msg = (uint32_t) (M ?  M->n : state->n_q);
+    msg = sns_msg_motor_state_local_alloc(n_msg);
+
+    /* TODO: make pos and vel optional in state message */
+
+    /* fill values */
+    double *pos = sns_msg_motor_state_pos(msg);
+    double *vel = sns_msg_motor_state_vel(msg);
+    int incpos = (int)sns_msg_motor_state_incpos(msg);
+    int incvel = (int)sns_msg_motor_state_incvel(msg);
+    int n_q = (int)state->n_q;
+
+    if(M) {
+        SNS_LOG(LOG_WARNING, "Unimplemented state output remapping");
+    } else {
+        if(state->q) cblas_dcopy( n_q, state->q, 1, pos, incpos );
+        if(state->dq) cblas_dcopy( n_q, state->dq, 1, vel, incvel );
+    }
+
+    sns_msg_set_time( &msg->header, now, dur_ns );
+
+    /* send message */
+    sns_msg_motor_state_put(channel, msg);
+
+    /* deallocation */
+    aa_mem_region_local_pop(msg);
+}
+
+
 void
 sns_motor_map_destroy( struct sns_motor_map *m )
 {
