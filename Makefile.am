@@ -19,7 +19,7 @@ init_ddir = $(sysconfdir)/init.d
 init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
-libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c src/event.c
+libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c src/event.c src/motor.c
 libsns_la_LIBADD = -lach -lamino -lach-experimental
 
 ## PLUGINS
