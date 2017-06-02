@@ -45,9 +45,102 @@
 #include <amino/rx/scenegraph.h>
 #include <amino/rx/scene_plugin.h>
 
+#include <amino/ct/state.h>
+
 #include "sns.h"
 #include "sns/joystick/gamepad.h"
 #include "sns/event.h"
+
+struct sns_motor_map {
+    size_t n;
+    const struct aa_rx_sg *sg;
+    char **name;
+    aa_rx_config_id *id;
+};
+
+void
+sns_motor_map_in( const struct sns_motor_map *M,
+                  size_t n_sub, const double *q_sub,
+                  double *q_all )
+{
+    size_t n = AA_MIN(n_sub, M->n);
+    for( size_t i = 0; i < n; i ++ ) {
+        q_all[ M->id[i] ] = q_sub[i];
+    }
+}
+
+void
+sns_motor_map_destroy( struct sns_motor_map *m )
+{
+    for( size_t i = 0; i < m->n; i ++ ) {
+        free(m->name[i]);
+    }
+    free(m->name);
+    free(m->id);
+    free(m);
+}
+
+struct sns_motor_map *
+sns_motor_map_parse( const char *str )
+{
+    char *saveptr = NULL;
+    size_t n_var = 0;
+    size_t n_str = 0;
+
+    /* Count vars and string length */
+    if( '\0' != *str ) n_var++;
+    while( '\0' != str[n_str] ) {
+        if( ',' == str[n_str] ) n_var++;
+        n_str++;
+    }
+
+    char buf[1 + n_str];
+    strcpy(buf,str);
+
+    struct sns_motor_map *M = AA_NEW(struct sns_motor_map);
+    M->n = n_var;
+    M->name = AA_NEW_AR(char*,M->n);
+    M->id = AA_NEW_AR(aa_rx_config_id,M->n);
+
+    /* tokenize string */
+    {
+        size_t i = 0;
+        char *tok = strtok_r(buf, ",", &saveptr);
+        while(tok) {
+            assert( i < M->n );
+            M->name[i] = strdup(tok);
+            M->id[i] = AA_RX_FRAME_NONE;
+            i++;
+            tok = strtok_r(NULL, ",", &saveptr);
+        }
+    }
+
+    return M;
+
+}
+
+int
+sns_motor_map_fill_id( const struct aa_rx_sg *sg, struct sns_motor_map *M )
+{
+    M->sg = sg;
+    for( size_t i = 0; i < M->n; i ++ ) {
+        M->id[i] = aa_rx_sg_config_id(sg,M->name[i]);
+        if( M->id[i] < 0 ) {
+            SNS_LOG( LOG_ERR, "Unknown configuration variable: `%s'", M->name[i] );
+            return  -1;
+        }
+    }
+    return 0;
+}
+
+
+struct joint_ctrl {
+    int button;
+    struct sns_motor_map *map;
+
+    struct joint_ctrl *next;
+
+};
 
 struct cx {
     struct in_cx *in;
@@ -55,6 +148,7 @@ struct cx {
     struct ach_channel ref_out;
 
     struct aa_rx_sg *scenegraph;
+    aa_rx_frame_id end_effector;
 
     struct sns_evhandler handlers[2];
     struct ach_channel channel[2];
@@ -62,17 +156,29 @@ struct cx {
     struct timespec period;
 
     size_t n_q;
+    size_t n_f;
 
-    double *q_act;
-    double *dq_act;
+    struct aa_ct_state *state_act;
+
+
+    struct joint_ctrl *joint_ctrl;
 
     double *q_ref;
     double *dq_ref;
 };
 
 
-enum ach_status handle_js( void *cx, void *msg, size_t msg_size );
-enum ach_status handle_state( void *cx, void *msg, size_t msg_size );
+static enum ach_status
+handle_js( void *cx, void *msg, size_t msg_size );
+
+static enum ach_status
+handle_state( void *cx, void *msg, size_t msg_size );
+
+static void
+teleop( struct cx *cx, struct sns_msg_joystick *msg );
+
+static void
+halt( struct cx *cx );
 
 void send_ref( struct cx *cx );
 
@@ -87,9 +193,10 @@ main(int argc, char **argv)
     const char *opt_chan_joystick = NULL;
     const char *opt_scene_plugin = NULL;
     const char *opt_scene_name = NULL;
+    const char *opt_end_effector = NULL;
     {
         int c = 0;
-        while( (c = getopt( argc, argv, "u:y:j:s:n:h?" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "u:y:j:s:n:e:Q:m:h?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-teleopd",
                                      "Copyright (c) 2015-2017, Rice University\n",
@@ -109,6 +216,24 @@ main(int argc, char **argv)
             case 'j':
                 opt_chan_joystick = optarg;
                 break;
+            case 'e':
+                opt_end_effector = optarg;
+                break;
+            case 'Q':
+            {
+                struct joint_ctrl *J = AA_NEW0(struct joint_ctrl);
+                J->button = atoi(optarg);
+                J->next = cx.joint_ctrl;
+                cx.joint_ctrl = J;
+                break;
+            }
+            case 'm':
+                if( cx.joint_ctrl ) {
+                    cx.joint_ctrl->map = sns_motor_map_parse(optarg);
+                } else {
+                    SNS_DIE("Need joint-space button parameter before joint map\n");
+                }
+                break;
             case '?':   /* help     */
             case 'h':
                 puts( "Usage: sns-teleopd -j <joystick-channel> -u <ref-channel> -y <state-channel>\n"
@@ -120,11 +245,16 @@ main(int argc, char **argv)
                       "  -u <channel>,             reference channel, output\n"
                       "  -s <plugin>,              scene plugin\n"
                       "  -n <name>,                scene name\n"
+                      "  -e <frame>,               end-effector frame\n"
+                      "  -m <map>,                 motor map\n"
+                      "  -Q <button>,              joint-space control button\n"
                       "  -V,                       Print program version\n"
                       "  -?,                       display this help and exit\n"
                       "\n"
                       "Examples:\n"
                       "  sns-teleopd -j joystick -y state -u ref\n"
+                      "\n"
+                      "  sns-teleopd -j joystick -y state -u ref -q 1 -m s0,s1,e0 -q 2 -m w0,w1,w2\n"
                       "\n"
                       "Report bugs to " PACKAGE_BUGREPORT );
                       exit(EXIT_SUCCESS);
@@ -145,11 +275,23 @@ main(int argc, char **argv)
     cx.scenegraph = aa_rx_dl_sg(opt_scene_plugin, opt_scene_name, NULL);
     SNS_REQUIRE( NULL != cx.scenegraph, "Could not load scene plugin");
     aa_rx_sg_init(cx.scenegraph);
+    if( opt_end_effector ) {
+        cx.end_effector = aa_rx_sg_frame_id(cx.scenegraph,opt_end_effector);
+        SNS_REQUIRE( cx.end_effector > 0, "Invalid end-effector frame: `%s'", opt_end_effector );
+    } else {
+        cx.end_effector = AA_RX_FRAME_NONE;
+    }
+
+    /* Init scene vars */
     cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
-    cx.q_act = AA_NEW_AR(double,cx.n_q);
-    cx.dq_act = AA_NEW_AR(double,cx.n_q);
+    cx.n_f = aa_rx_sg_frame_count(cx.scenegraph);
     cx.q_ref = AA_NEW_AR(double,cx.n_q);
     cx.dq_ref = AA_NEW_AR(double,cx.n_q);
+    cx.state_act = aa_ct_state_alloc( aa_mem_region_local_get(), cx.n_q, cx.n_f );
+    for( struct joint_ctrl *J = cx.joint_ctrl; J; J = J->next ) {
+        int r = sns_motor_map_fill_id( cx.scenegraph, J->map );
+        SNS_REQUIRE(0 == r, "Could not initialize motor map for joint control");
+    }
 
     /* Setup channels */
     sns_chan_open( &cx.channel[0], opt_chan_state, NULL );
@@ -194,30 +336,72 @@ enum ach_status handle_js( void *cx_, void *msg_, size_t msg_size )
 
     if( sns_msg_joystick_check_size(msg,msg_size) ) {
         /* Invalid Message */
-        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+        SNS_LOG(LOG_ERR, "Mismatched message size on joystick channel\n");
     } else {
         /* Process Message */
-        AA_MEM_ZERO(cx->q_ref, cx->n_q);
-
-        for( size_t i = 0; i < cx->n_q && i < msg->header.n; i ++ ) {
-            cx->dq_ref[i] = msg->axis[i];
-        }
-
-        send_ref(cx);
+        teleop(cx,msg);
     }
-    /* TODO: Axis selection */
-
-    /* TODO: Workspace control */
 
     return ACH_OK;
 }
 
-enum ach_status handle_state( void *cx, void *msg, size_t msg_size )
+
+void teleop( struct cx *cx, struct sns_msg_joystick *msg )
 {
-    /* TODO */
-    (void)cx;
-    (void)msg;
-    (void)msg_size;
+    /* TODO: Workspace control */
+
+    AA_MEM_ZERO(cx->q_ref, cx->n_q);
+    AA_MEM_ZERO(cx->dq_ref, cx->n_q);
+
+    for( struct joint_ctrl *J = cx->joint_ctrl; J; J = J->next ) {
+        if( msg->buttons & (uint64_t)(1 << J->button ) ) {
+            sns_motor_map_in( J->map,
+                              (size_t)msg->header.n, msg->axis,
+                              cx->dq_ref );
+
+        }
+    }
+
+    send_ref(cx);
+}
+
+static void fill_state( size_t n_q, const double *msg, size_t inc_msg, double *state )
+{
+    if( msg && state ) {
+        cblas_dcopy( (int)n_q, msg, (int)inc_msg, state, 1 );
+    }
+}
+
+enum ach_status handle_state( void *cx_, void *msg_, size_t msg_size )
+{
+
+    struct cx *cx = (struct cx*)cx_;
+    struct sns_msg_motor_state *msg = (struct sns_msg_motor_state *)msg_;
+    struct aa_ct_state *X = cx->state_act;
+
+    if( sns_msg_motor_state_check_size(msg,msg_size) ) {
+        /* Invalid Message */
+        SNS_LOG(LOG_ERR, "Mismatched message size on state channel\n");
+    } else if ((size_t)sns_msg_motor_state_count(msg) != X->n_q) {
+        SNS_LOG(LOG_ERR, "Mismatched message size on state channel\n");
+    } else {
+        fill_state( X->n_q,
+                    sns_msg_motor_state_pos(msg),
+                    sns_msg_motor_state_incpos(msg),
+                    X->q );
+        fill_state( X->n_q,
+                    sns_msg_motor_state_vel(msg),
+                    sns_msg_motor_state_incvel(msg),
+                    X->dq );
+        fill_state( X->n_q,
+                    sns_msg_motor_state_acc(msg),
+                    sns_msg_motor_state_incacc(msg),
+                    X->dq );
+        fill_state( X->n_q,
+                    sns_msg_motor_state_eff(msg),
+                    sns_msg_motor_state_inceff(msg),
+                    X->dq );
+    }
 
     return ACH_OK;
 }

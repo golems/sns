@@ -654,6 +654,20 @@ sns_msg_motor_state_vel( struct sns_msg_motor_state *msg )
     return &msg->X[0].vel;
 }
 
+static inline double *
+sns_msg_motor_state_acc( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return NULL;
+}
+
+static inline double *
+sns_msg_motor_state_eff( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return NULL;
+}
+
 static inline size_t
 sns_msg_motor_state_incpos( struct sns_msg_motor_state *msg )
 {
@@ -666,6 +680,20 @@ sns_msg_motor_state_incvel( struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 2;
+}
+
+static inline size_t
+sns_msg_motor_state_incacc( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 0;
+}
+
+static inline size_t
+sns_msg_motor_state_inceff( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 0;
 }
 
 static inline uint32_t
