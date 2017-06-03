@@ -80,3 +80,13 @@ Makefile.in
 /doc/command.md
 /doc/daemon.md
 /doc/driver.md
+/doc/tex/auto/
+/doc/tex/*.aux
+/doc/tex/*.log
+/doc/tex/*.pdf
+/doc/tex/ref.png
+/doc/tex/ref.ps
+/*-crop.*
+/ref.*
+/teleop.*
+/multi.*

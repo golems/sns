@@ -1,0 +1,39 @@
+\documentclass{article}
+
+\usepackage{sns}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+  \node[daemon,name=sim] {sns-ksim};
+  \node[channel,name=state_left,right of=sim,xshift=3em] {state\_left};
+  \node[channel,name=state_head,above of=state_left,node distance=3em] {state\_head};
+  \node[channel,name=state_right,below of=state_left,node distance=3em] {state\_right};
+
+  \node[channel,name=ref_left,left of=sim,xshift=-3em] {ref\_left};
+  \node[channel,name=ref_head,above of=ref_left,node distance=3em] {ref\_head};
+  \node[channel,name=ref_right,below of=ref_left,node distance=3em] {ref\_right};
+
+  \draw[edge] (ref_left.east) -- (sim.west);
+  \draw[edge] (ref_head.east) -- (sim.west);
+  \draw[edge] (ref_right.east) -- (sim.west);
+
+  \draw[edge] (sim.east) -- (state_left.west);
+  \draw[edge] (sim.east) -- (state_head.west);
+  \draw[edge] (sim.east) -- (state_right.west);
+
+  \node[daemon,name=lref,left of=ref_left,xshift=-2em] {snsref};
+  \node[daemon,name=href,left of=ref_head,xshift=-2em] {snsref};
+
+  \draw[edge] (lref.east) -- (ref_left.west);
+  \draw[edge] (href.east) -- (ref_head.west);
+\end{tikzpicture}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

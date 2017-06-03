@@ -203,7 +203,7 @@ doc/sns-teleopd.1: $(top_builddir)/sns-teleopd $(top_srcdir)/configure.ac
 
 
 html_mans =
-
+html_imgs =
 
 ROFFIT_PROC=roffit --bare < $< | sed -e 's/This HTML.*//' > $@
 
@@ -245,8 +245,30 @@ doc/driver.md: doc/md/driver.md $(html_mans)
 	m4 --prefix-builtins $< > $@
 
 
-EXTRA_DIST += $(html_mans)
-doxygen: $(html_mans) doc/daemon.md doc/command.md doc/driver.md
+html_imgs += doc/manual/img/ref.png
+doc/manual/img/ref.png: doc/tex/ref.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex ref.tex
+	pdfcrop ref.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ ref-crop.pdf
+
+html_imgs += doc/manual/img/teleop.png
+doc/manual/img/teleop.png: doc/tex/teleop.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex teleop.tex
+	pdfcrop teleop.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ teleop-crop.pdf
+
+html_imgs += doc/manual/img/multi.png
+doc/manual/img/multi.png: doc/tex/multi.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex multi.tex
+	pdfcrop multi.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ multi-crop.pdf
+
+
+EXTRA_DIST += $(html_mans) $(html_imgs)
+doxygen: $(html_mans) $(html_imgs) doc/daemon.md doc/command.md doc/driver.md
 
 
 endif

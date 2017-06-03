@@ -1,0 +1,35 @@
+\documentclass{article}
+
+\usepackage{sns}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+  \node[daemon,name=sim] {sns-ksim};
+  \node[channel,name=state,right of=sim] {state};
+  \node[channel,name=ref,left of=sim] {ref};
+  \node[daemon,name=teleop,left of=ref] {sns-teleop};
+
+  \node[channel,name=joystick,left of=teleop,xshift=-2em] {joystick};
+  \node[daemon,name=joyd,left of=joystick,xshift=-1em] {sns-joyd};
+
+  \node[coordinate,name=bstate,below of=state] {};
+  \node[coordinate,name=bteleop,below of=teleop] {};
+
+  \draw[edge] (teleop) -- (ref);
+  \draw[edge] (ref) -- (sim);
+  \draw[edge] (sim) -- (state);
+  \draw[edge] (joyd) -- (joystick);
+  \draw[edge] (joystick) -- (teleop);
+
+  \draw[edge] (state) -- (bstate) -- (bteleop) -- (teleop);
+\end{tikzpicture}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

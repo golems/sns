@@ -68,6 +68,12 @@ int main( int argc, char **argv ) {
 Using the Simulator {#tutorial_simulator}
 ===================
 
+<div>
+<img src="img/ref.png" style="width:50%"></img>
+
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
 1. Build the Baxter demos for Amino
 
         cd amino && ./configure --enable-demo-baxter && make
@@ -121,12 +127,63 @@ Run a daemon in the background {#tutorial_background}
 
         sns stop
 
+Teleoperate a robot {#tutorial_teleop}
+===================
 
-Remap joints {#tutorial_remap}
-============
 
-Sometimes, you may want to simulate multiple "robots" in one
-instance, for example, to separately handle the left and right arms.
+<div>
+<img src="img/teleop.png" style="width:50%"></img>
+
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+1. Make a joystick/gamepad channel:
+
+        ach mk joystick
+
+2. Start the joystick/gamepad driver (for a 6-axis gamepad):
+
+        sns run -d -r joy -- sns-joyd -a 6
+
+
+3. Dump the joystick channel and fiddle with the joystick to see how
+   the axes and buttons are mapped on your particular hardware:
+
+        snsdump joystick joystick
+
+4. Start the simulator:
+
+        sns run -d -r bg-ksim -- sns-ksim -y state -u ref
+
+5. Start the teleoperation controller.  The `-Q` parameter controls
+   which button enables the subsequently listed set of axes.  You may
+   need to change the argument to `-Q` depending on your particular
+   joystick hardware.
+
+        sns-teleopd -j joystick \
+                    -y state \
+                    -u ref \
+                    -Q 4 -m "left_s0,left_s1,left_e0,left_e1" \
+                    -Q 6 -m "left_w0,left_w1,left_w2" \
+                    -Q 5 -m "right_s0,right_s1,right_e0,right_e1" \
+                    -Q 7 -m "right_w0,right_w1,right_w2"
+
+6. Push one of the buttons and wiggle the joystick axes to move the
+   robot.
+
+Multiple Robots {#tutorial_remap}
+==============
+
+<div>
+<img src="img/multi.png" style="width:50%"></img>
+
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+If you have multiple "robots," for example, a left and right arm, you
+may want to simulate these in one instance.  Compile all the robots
+into a single scenegraph. Then, we will remap the state and reference
+variables to split the input and output over multiple channels.
 
 1. Create new channels:
 
@@ -137,15 +194,15 @@ instance, for example, to separately handle the left and right arms.
         ach mk ref_right
         ach mk ref_head
 
-2. Define environment vars for axes to remap:
+2. Define environment variables for axes to remap:
 
         export SNS_CHANNEL_MAP_state_left="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
         export SNS_CHANNEL_MAP_state_right="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
         export SNS_CHANNEL_MAP_state_head="head_pan"
 
-        export SNS_CHANNEL_MAP_ref_left="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
-        export SNS_CHANNEL_MAP_ref_right="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
-        export SNS_CHANNEL_MAP_ref_head="head_pan"
+        export SNS_CHANNEL_MAP_ref_left="$SNS_CHANNEL_MAP_state_left"
+        export SNS_CHANNEL_MAP_ref_right="$SNS_CHANNEL_MAP_state_right"
+        export SNS_CHANNEL_MAP_ref_head="$SNS_CHANNEL_MAP_state_head"
 
 3. Restart the simulator.  It will find the remapping parameters in
    the environment variables.
@@ -155,7 +212,15 @@ instance, for example, to separately handle the left and right arms.
                      -y state_right -u ref_right \
                      -y state_head  -u ref_head
 
-4. Send a reference to the head, then th eleft arm
+4. Send a reference to the head, then the left arm
 
         snsref -d ref_head  --  1
         snsref -d ref_left --  1 0 0 0 0 0 0
+
+
+5. Kill the simulator:
+
+        sns kill bg-ksim
+
+Motor Priority {#tutorial_priority}
+=============
