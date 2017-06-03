@@ -36,7 +36,18 @@
 #ifndef SNS_MOTOR_H
 #define SNS_MOTOR_H
 
+/**
+ * @file motor.h
+ * @brief Convenience functions for motor message multiplexing.
+ * @author Neil T. Dantam
+ */
+
 #include "sns.h"
+
+/**
+ * Forward declaration
+ */
+struct sns_evhandler;
 
 /**
  * Descriptor to remap motor indices.
@@ -78,6 +89,112 @@ struct sns_motor_map {
 };
 
 /**
+ * Return the scenegraph for the map
+*/
+AA_API const struct aa_rx_sg *
+sns_motor_map_sg(struct sns_motor_map *map);
+
+
+/**
+ * Descriptor for a motor message channel with axis remapping.
+ */
+struct sns_motor_channel {
+
+    /** The actual channel */
+    struct ach_channel channel;
+
+    /** Channel name */
+    const char *name;
+
+    /** Remapping parameter */
+    struct sns_motor_map *map;
+
+    /** Priority for references from channel */
+    int priority;
+
+    /** Context for a handler */
+    void *cx;
+
+    /** Next element in list */
+    struct sns_motor_channel *next;
+};
+
+
+/**
+ * Motor reference metadata;
+ */
+struct sns_motor_ref_meta {
+
+    /** Control mode */
+    enum sns_motor_mode mode;
+
+    /** Message time */
+    struct timespec time;
+
+    /** Expiration time */
+    struct timespec expiration;
+
+    /** Message priority */
+    int priority;
+};
+
+/**
+ * Motor references from a single message/channel.
+ */
+struct sns_motor_ref_elt {
+
+    /* Channel to read messages from */
+    struct sns_motor_channel *channel;
+
+    /** Number of axes. */
+    size_t n;
+
+    /** Reference metadata */
+    struct sns_motor_ref_meta meta;
+
+    /** Value for each axis. */
+    double *u;
+
+};
+
+/**
+ * Return number of configurations described by the reference element.
+ */
+AA_API size_t
+sns_motor_ref_elt_config_count( const struct sns_motor_ref_elt *e );
+
+/**
+ * Return remapping parameter (possibly NULL);
+ */
+AA_API struct sns_motor_map *
+sns_motor_ref_elt_map( const struct sns_motor_ref_elt *e );
+
+/**
+ * A set of motor references.
+ */
+struct sns_motor_ref_set {
+
+    /** Scenegraph for the reference set */
+    const struct aa_rx_sg *scenegraph;
+
+    /** Number of axes. */
+    size_t n_q;
+
+    /** Number of reference elements */
+    size_t n_elt;
+
+    /** Ref elements for channels */
+    struct sns_motor_ref_elt *elt;
+
+    /** Referance metadata */
+    struct sns_motor_ref_meta *meta;
+
+    /** Value for each axis. */
+    double *u;
+};
+
+
+/**
  * Fill q_all with values from q_sub, remapped according to M.
  */
 AA_API void
@@ -113,13 +230,69 @@ sns_motor_map_parse( const char *str );
 int
 sns_motor_map_fill_id( const struct aa_rx_sg *sg, struct sns_motor_map *M );
 
+/**
+ * Fill motor reference element from a single message
+ */
+AA_API void
+sns_motor_ref_fill ( const struct sns_msg_motor_ref *msg,
+                     struct sns_motor_ref_elt *ref_elt );
 
-struct sns_motor_vref {
-    size_t n;
-    enum sns_motor_mode *mode;
-    double *x;
-    int *priority;
-};
+/**
+ * Combine many reference messages into a single set.
+ */
+AA_API void
+sns_motor_ref_collate ( const struct timespec *now,
+                        struct sns_motor_ref_set *set );
 
+/**
+ * Add a new channel to the list.
+ *
+ * Does not open the channel.
+ *
+ * @sa sns_motor_channel_init()
+ */
+AA_API void
+sns_motor_channel_push( const char *name, struct sns_motor_channel **plist );
+
+/**
+ * Post state to the motor channel, remapping as necessary.
+ */
+AA_API void
+sns_motor_channel_put( struct sns_motor_channel *mc, const struct aa_ct_state *state,
+                       const struct timespec *now, int64_t dur_ns );
+
+/**
+ * Parse axes in str as remap parameters for the motor channel.
+ *
+ * @param mc The motor channel
+ * @param str Comma separated list of configuration variables to pass over the channel
+ */
+AA_API void
+sns_motor_channel_parse_map( struct sns_motor_channel *mc, const char *str );
+
+/**
+ * Initialize variables in the motor channel list
+ *
+ * @pre scenegraph is initialized
+ */
+
+AA_API void
+sns_motor_channel_init( struct sns_motor_channel *list, const struct aa_rx_sg *scenegraph );
+
+
+/**
+ * Initialize reference elements and reference set.
+ */
+AA_API void
+sns_motor_ref_init( const struct aa_rx_sg *scenegraph,
+                    struct sns_motor_channel *list,
+                    struct sns_motor_ref_set **ref_set,
+                    size_t n_handlers, struct sns_evhandler *handlers );
+
+/**
+ * Return the number of channel elements in list
+ */
+size_t
+sns_motor_channel_count( struct sns_motor_channel *list );
 
 #endif /* SNS_MOTOR_H */

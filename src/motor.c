@@ -43,6 +43,7 @@
 #include <amino/ct/state.h>
 
 #include "sns/motor.h"
+#include "sns/event.h"
 
 
 
@@ -78,7 +79,13 @@ sns_motor_map_state_out( const struct aa_ct_state *state,
     int n_q = (int)state->n_q;
 
     if(M) {
-        SNS_LOG(LOG_WARNING, "Unimplemented state output remapping");
+        for( size_t i = 0; i < M->n; i ++ ) {
+            aa_rx_config_id j = M->id[i];
+            *pos = state->q[j];
+            *vel = state->dq[j];
+            pos += incpos;
+            vel += incpos;
+        }
     } else {
         if(state->q) cblas_dcopy( n_q, state->q, 1, pos, incpos );
         if(state->dq) cblas_dcopy( n_q, state->dq, 1, vel, incvel );
@@ -141,7 +148,6 @@ sns_motor_map_parse( const char *str )
     }
 
     return M;
-
 }
 
 int
@@ -156,4 +162,216 @@ sns_motor_map_fill_id( const struct aa_rx_sg *sg, struct sns_motor_map *M )
         }
     }
     return 0;
+}
+
+void
+sns_motor_channel_push( const char *name, struct sns_motor_channel **phead )
+{
+    struct sns_motor_channel *mc = AA_NEW0(struct sns_motor_channel);
+    mc->name = name;
+    mc->next = *phead;
+    *phead = mc;
+}
+
+void
+sns_motor_channel_put( struct sns_motor_channel *list, const struct aa_ct_state *state,
+                       const struct timespec *t, int64_t dur_ns )
+{
+
+    while(list) {
+        sns_motor_map_state_out( state, list->map,
+                                 t, dur_ns,
+                                 &list->channel );
+        list = list->next;
+    }
+}
+
+void
+sns_motor_channel_parse_map( struct sns_motor_channel *mc, const char *mapstr )
+{
+    mc->map = sns_motor_map_parse(mapstr);
+}
+
+void
+sns_motor_channel_init( struct sns_motor_channel *list, const struct aa_rx_sg *scenegraph )
+{
+    while( list ) {
+        sns_chan_open( &list->channel, list->name, NULL );
+        if( list->map ) {
+            sns_motor_map_fill_id( scenegraph, list->map );
+        }
+        list = list->next;
+    }
+}
+
+
+AA_API void
+sns_motor_ref_fill ( const struct sns_msg_motor_ref *msg,
+                     struct sns_motor_ref_elt *ref_elt )
+{
+    size_t n = ref_elt->n;
+
+    /* Validate */
+    if( msg->header.n != n ) {
+        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+    } else {
+        /* fill */
+        /* meta.priority set during initialization */
+        ref_elt->meta.time = sns_msg_get_time(&msg->header);
+        ref_elt->meta.expiration = sns_msg_get_expiration(&msg->header);
+        ref_elt->meta.mode = msg->mode;
+        AA_MEM_CPY(ref_elt->u, msg->u, n);
+    }
+}
+
+static int is_expired( struct timespec now, struct timespec expiration )
+{
+    if( aa_tm_cmp(now, expiration) < 0 ) return 0;
+    else return 1;
+}
+
+static void collate1( const struct timespec *now,
+                      const struct sns_motor_ref_elt *e,
+                      struct sns_motor_ref_set *set,
+                      double u,
+                      size_t j )
+{
+    struct sns_motor_ref_meta *smeta = set->meta + j;
+    long cu = aa_tm_cmp(e->meta.time,smeta->time);
+    int pu = e->meta.priority, ps = smeta->priority;
+
+    if( is_expired(*now,smeta->expiration) ||  /* old value expired */
+        (pu > ps ) || /* new priority greater */
+        ((pu == ps) && (cu > 0)) ) /* same priority, newer message */
+    {
+        set->u[j] = u;
+        *smeta = e->meta;
+    }
+}
+
+
+AA_API void
+sns_motor_ref_collate ( const struct timespec *now,
+                        struct sns_motor_ref_set *set )
+{
+    size_t n_elt = set->n_elt;
+    const struct sns_motor_ref_elt *elts = set->elt;
+    for( size_t i = 0; i < n_elt; i ++ ) {
+        const struct sns_motor_ref_elt *e = elts + i;
+
+        /* check if expired */
+        if( is_expired(*now, e->meta.expiration) < 0 ) continue;
+        /* else not expired */
+
+        struct sns_motor_map *map = sns_motor_ref_elt_map(e);
+        if( map ) {
+            /* remap */
+            for( size_t je = 0; je < e->n; je ++ ) {
+                size_t js = (size_t)map->id[je];
+                collate1(now, e, set, e->u[je], js);
+            }
+        } else {
+            /* copy */
+            for( size_t j = 0; j < e->n && j < set->n_q; j ++ ) {
+                collate1(now, e, set, e->u[j], j);
+            }
+        }
+    }
+}
+
+size_t
+sns_motor_channel_count( struct sns_motor_channel *list )
+{
+    size_t n = 0;
+    while(list) {
+        n++;
+        list = list->next;
+    }
+    return n;
+}
+
+AA_API struct sns_motor_ref_elt *
+sns_motor_ref_elt_init( const struct aa_rx_sg *scenegraph,
+                        struct sns_motor_channel *list )
+{
+    size_t n_list = sns_motor_channel_count(list);
+    size_t n_q_all = aa_rx_sg_config_count(scenegraph);
+    struct sns_motor_ref_elt *elts = AA_NEW0_AR(struct sns_motor_ref_elt, n_list);
+    size_t i = 0;
+    while(list) {
+        struct sns_motor_ref_elt *e = elts + i;
+        e->n = list->map ? list->map->n : n_q_all;
+        e->u = AA_NEW0_AR(double,e->n);
+        e->meta.priority = list->priority;
+        e->channel = list;
+
+        list = list->next;
+        i++;
+    }
+    return elts;
+
+}
+
+static enum ach_status
+ref_handler( void *cx_, void *msg_, size_t frame_size )
+{
+    struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref *)msg_;
+    struct sns_motor_ref_elt *e = (struct sns_motor_ref_elt*)cx_;
+
+    if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
+        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+    } else {
+        sns_motor_ref_fill(msg, e);
+    }
+    return ACH_OK;
+}
+
+AA_API void
+sns_motor_ref_init( const struct aa_rx_sg *scenegraph,
+                    struct sns_motor_channel *list,
+                    struct sns_motor_ref_set **ref_set,
+                    size_t n_handlers, struct sns_evhandler *handlers )
+{
+    /* Init channels */
+    sns_motor_channel_init(list, scenegraph);
+
+    /* Init ref set */
+    *ref_set = AA_NEW0( struct sns_motor_ref_set );
+
+    (*ref_set)->scenegraph = scenegraph;
+    (*ref_set)->n_q = aa_rx_sg_config_count(scenegraph);
+    (*ref_set)->u = AA_NEW0_AR(double, (*ref_set)->n_q);
+    (*ref_set)->meta = AA_NEW0_AR(struct sns_motor_ref_meta, (*ref_set)->n_q);
+
+    (*ref_set)->n_elt = sns_motor_channel_count(list);
+    (*ref_set)->elt = sns_motor_ref_elt_init(scenegraph,list);
+
+    /* Init Handlers */
+    for( size_t i = 0; i < n_handlers && i < (*ref_set)->n_elt; i ++ )
+    {
+        struct sns_motor_ref_elt *e = (*ref_set)->elt + i;
+        handlers[i].channel = &e->channel->channel;
+        handlers[i].context = e;
+        handlers[i].handler = ref_handler;
+        handlers[i].ach_options = ACH_O_LAST;
+    }
+}
+
+AA_API struct sns_motor_map *
+sns_motor_ref_elt_map( const struct sns_motor_ref_elt *e )
+{
+    return e->channel->map;
+}
+
+AA_API size_t
+sns_motor_ref_elt_config_count( const struct sns_motor_ref_elt *e )
+{
+    return e->n;
+}
+
+
+AA_API const struct aa_rx_sg *
+sns_motor_map_sg(struct sns_motor_map *map)
+{
+    return map->sg;
 }
