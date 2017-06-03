@@ -256,6 +256,12 @@ void sns_chan_open( ach_channel_t *chan, const char *name,
  */
 void sns_chan_close( ach_channel_t *chan );
 
+/*******************/
+/* Plugin Loading  */
+/*******************/
+
+AA_API struct aa_rx_sg*
+sns_scene_load(void);
 
 /********************/
 /* Option Handling  */

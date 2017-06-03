@@ -110,22 +110,14 @@ main(int argc, char **argv)
     const char *opt_chan_state = NULL;
     const char *opt_chan_ref = NULL;
     const char *opt_chan_joystick = NULL;
-    const char *opt_scene_plugin = NULL;
-    const char *opt_scene_name = NULL;
     const char *opt_end_effector = NULL;
     {
         int c = 0;
-        while( (c = getopt( argc, argv, "u:y:j:s:n:e:Q:m:h?" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "u:y:j:e:Q:m:h?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-teleopd",
                                      "Copyright (c) 2015-2017, Rice University\n",
                                      "Neil T. Dantam")
-            case 's':
-                opt_scene_plugin = optarg;
-                break;
-            case 'n':
-                opt_scene_name = optarg;
-                break;
             case 'u':
                 opt_chan_ref = optarg;
                 break;
@@ -162,8 +154,6 @@ main(int argc, char **argv)
                       "  -y <channel>,             state channel, input\n"
                       "  -j <channel>,             joystick channel, input\n"
                       "  -u <channel>,             reference channel, output\n"
-                      "  -s <plugin>,              scene plugin\n"
-                      "  -n <name>,                scene name\n"
                       "  -e <frame>,               end-effector frame\n"
                       "  -m <map>,                 motor map\n"
                       "  -Q <button>,              joint-space control button\n"
@@ -187,13 +177,11 @@ main(int argc, char **argv)
     SNS_REQUIRE(opt_chan_state, "Need state channel");
     SNS_REQUIRE(opt_chan_ref, "Need reference channel");
     SNS_REQUIRE(opt_chan_joystick, "Need joystick channel");
-    SNS_REQUIRE(opt_scene_plugin, "Need scene plugin");
-    SNS_REQUIRE(opt_scene_name, "Need scene name");
 
     /* Load Scene Plugin */
-    cx.scenegraph = aa_rx_dl_sg(opt_scene_plugin, opt_scene_name, NULL);
-    SNS_REQUIRE( NULL != cx.scenegraph, "Could not load scene plugin");
+    cx.scenegraph = sns_scene_load();
     aa_rx_sg_init(cx.scenegraph);
+
     if( opt_end_effector ) {
         cx.end_effector = aa_rx_sg_frame_id(cx.scenegraph,opt_end_effector);
         SNS_REQUIRE( cx.end_effector > 0, "Invalid end-effector frame: `%s'", opt_end_effector );

@@ -759,6 +759,7 @@ INPUT                  = include \
                          doc/md/acknowledgments.md \
                          doc/md/Installation.md \
                          doc/md/ReadMe.md \
+                         doc/md/concepts.md \
                          doc/md/download.md \
                          doc/command.md \
                          doc/driver.md \
