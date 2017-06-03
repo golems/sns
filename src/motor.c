@@ -197,6 +197,20 @@ sns_motor_channel_init( struct sns_motor_channel *list, const struct aa_rx_sg *s
 {
     while( list ) {
         sns_chan_open( &list->channel, list->name, NULL );
+
+        if( !list->map ) {
+            static const char base[] = "SNS_CHANNEL_MAP_";
+            char buf[ strlen(base) + strlen(list->name) + 1 ];
+            strcpy(buf,base);
+            strcat(buf,list->name);
+            char *e = getenv(buf);
+            if(e) {
+                SNS_LOG(LOG_NOTICE,"Channel `%s' map: `%s'\n", list->name, e);
+                list->map = sns_motor_map_parse(e);
+                assert(list->map);
+            }
+        }
+
         if( list->map ) {
             sns_motor_map_fill_id( scenegraph, list->map );
         }
@@ -213,7 +227,8 @@ sns_motor_ref_fill ( const struct sns_msg_motor_ref *msg,
 
     /* Validate */
     if( msg->header.n != n ) {
-        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+        SNS_LOG(LOG_ERR, "Mistmached element count in reference message: %lu, wanted %d\n",
+                msg->header.n, n);
     } else {
         /* fill */
         /* meta.priority set during initialization */
@@ -319,7 +334,8 @@ ref_handler( void *cx_, void *msg_, size_t frame_size )
     struct sns_motor_ref_elt *e = (struct sns_motor_ref_elt*)cx_;
 
     if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
-        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+        SNS_LOG(LOG_ERR, "Mismatched message size on channel `%s'\n",
+                e->channel->name);
     } else {
         sns_motor_ref_fill(msg, e);
     }

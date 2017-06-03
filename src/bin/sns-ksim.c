@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     {
         int c = 0;
         opterr = 0;
-        while( (c = getopt( argc, argv, "y:u:p:hm:?" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "y:u:p:h?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-ksim",
                                      "Copyright (c) 2017, Rice University\n",
@@ -119,25 +119,15 @@ int main(int argc, char **argv)
                     SNS_DIE("No channel specified for priority argument");
                 }
                 break;
-            case 'm':
-                if( last_mc ) {
-                    sns_motor_channel_parse_map(last_mc, optarg);
-                } else {
-                    SNS_DIE("No channel specified for motor map `%s'", optarg);
-                }
-                break;
             case '?':   /* help     */
             case 'h':
-                puts( "Usage: sns-ksim -i INPUT_CHANNEL -o OUTPUT_CHANNEL -s SCENE_PLUGIN\n"
+                puts( "Usage: sns-ksim -u REF_CHANNEL -y STATE_CHANNEL\n"
                       "Kinematically simulate a robot.\n"
                       "\n"
                       "Options:\n"
                       "  -y <channel>,             state output channel\n"
                       "  -u <channel>,             reference input channel\n"
-                      "  -m <map>,                 motor map\n"
                       "  -p <priority>,            channel priority\n"
-                      "  -s <plugin>,              scenegraph plugin\n"
-                      "  -n <name>,                scenegraph name\n"
                       "  -V,                       Print program version\n"
                       "  -?,                       display this help and exit\n"
                       "\n"
@@ -146,8 +136,10 @@ int main(int argc, char **argv)
                       "\n"
                       "  SNS_SCENE_NAME            Name of the scene within the plugin\n"
                       "\n"
+                      "  SNS_CHANNEL_MAP_name      Channel remap list for `name'\n"
+                      "\n"
                       "Examples:\n"
-                      "  sns-ksim -o state -i ref -s libmyrobot.so -n myrobot\n"
+                      "  sns-ksim -y state -u ref\n"
                       "\n"
                       "Report bugs to <ntd@rice.edu>"
                     );

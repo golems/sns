@@ -139,14 +139,23 @@ instance, for example, to separately handle the left and right arms.
 
 2. Define environment vars for axes to remap:
 
-        LEFT="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
-        RIGHT="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
-        HEAD="head_pan"
+        export SNS_CHANNEL_MAP_state_left="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
+        export SNS_CHANNEL_MAP_state_right="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
+        export SNS_CHANNEL_MAP_state_head="head_pan"
 
-3. Start the simulator with remap parameters
+        export SNS_CHANNEL_MAP_ref_left="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
+        export SNS_CHANNEL_MAP_ref_right="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
+        export SNS_CHANNEL_MAP_ref_head="head_pan"
+
+3. Restart the simulator.  It will find the remapping parameters in
+   the environment variables.
 
         sns run -d -r bg-ksim -- \
-            sns-ksim -y state_left -m $LEFT \
-                     -y state_right -m $RIGHT \
-                     -y state_head -m $HEAD \
-                     -u ref
+            sns-ksim -y state_left  -u ref_left \
+                     -y state_right -u ref_right \
+                     -y state_head  -u ref_head
+
+4. Send a reference to the head, then th eleft arm
+
+        snsref -d ref_head  --  1
+        snsref -d ref_left --  1 0 0 0 0 0 0
