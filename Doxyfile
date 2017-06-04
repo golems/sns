@@ -765,6 +765,7 @@ INPUT                  = include \
                          doc/driver.md \
                          doc/daemon.md \
                          doc/md/tutorial.md \
+                         doc/tutorial-programming.md \
                          doc/md/mainpage.md
 
 # This tag can be used to specify the character encoding of the source files

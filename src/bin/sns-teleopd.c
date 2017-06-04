@@ -75,7 +75,7 @@ struct cx {
 
     struct ach_channel js_channel;
 
-     struct sns_evhandler *handlers;
+    struct sns_evhandler *handlers;
 
     struct timespec period;
 

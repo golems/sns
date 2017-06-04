@@ -3,6 +3,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 EXTRA_DIST =
 bin_PROGRAMS =
+noinst_PROGRAMS =
 bin_SCRIPTS =
 
 include_HEADERS = include/sns.h
@@ -119,6 +120,15 @@ sns_teleopd_LDADD = libsns.la -lach-experimental -lach -lamino
 bin_PROGRAMS += sns-joyd
 sns_joyd_SOURCES = src/driver/joystick/joyd.c src/driver/joystick/js.c
 sns_joyd_LDADD = libsns.la -lach -lamino
+
+
+noinst_PROGRAMS += demo/motor-ref
+demo_motor_ref_SOURCES = demo/motor-ref.c
+demo_motor_ref_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/motor-state
+demo_motor_state_SOURCES = demo/motor-state.c
+demo_motor_state_LDADD = libsns.la -lach -lamino
 
 bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
 
@@ -244,6 +254,9 @@ doc/command.md: doc/md/command.md $(html_mans)
 doc/driver.md: doc/md/driver.md $(html_mans)
 	m4 --prefix-builtins $< > $@
 
+doc/tutorial-programming.md: doc/md/tutorial-programming.md demo/motor-ref.c demo/motor-state.c
+	m4 --prefix-builtins $< > $@
+
 
 html_imgs += doc/manual/img/ref.png
 doc/manual/img/ref.png: doc/tex/ref.tex doc/tex/sns.sty
@@ -275,7 +288,7 @@ doc/manual/img/priority.png: doc/tex/priority.tex doc/tex/sns.sty
 
 
 EXTRA_DIST += $(html_mans) $(html_imgs)
-doxygen: $(html_mans) $(html_imgs) doc/daemon.md doc/command.md doc/driver.md
+doxygen: $(html_mans) $(html_imgs) doc/daemon.md doc/command.md doc/driver.md doc/tutorial-programming.md
 
 
 endif

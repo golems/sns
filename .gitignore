@@ -93,3 +93,7 @@ Makefile.in
 /priority.aux
 /priority.log
 /priority.pdf
+/demo/motor-ref
+/demo/motor-state
+/doc/tutorial-programming.md
+/demo/.libs/
