@@ -1,5 +1,5 @@
-Tutorial {#tutorial}
-========
+Basic Tutorial {#tutorial}
+==============
 
 [TOC]
 
@@ -176,7 +176,6 @@ Multiple Robots {#tutorial_remap}
 
 <div>
 <img src="img/multi.png" style="width:50%"></img>
-
 <div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
 </div>
 
@@ -222,5 +221,39 @@ variables to split the input and output over multiple channels.
 
         sns kill bg-ksim
 
-Motor Priority {#tutorial_priority}
-=============
+Motor Reference Priority {#tutorial_priority}
+========================
+
+<div>
+<img src="img/priority.png" style="width:50%"></img>
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+You may wish to have multiple controllers for the robot, with some
+having priority over others.  For example, teleoperation may supersede
+trajectory tracking, and collision avoidance supersede all others.  We
+can accomplish such controller priority by through multiple,
+prioritized reference channels.
+
+1. Create a high-priority reference channel:
+
+        ach mk ref_hi
+
+2. Restart the simulator with a the higher-priority channel `ref_hi`
+   at a priority level of 10:
+
+        sns run -d -r bg-ksim -- \
+            sns-ksim -y state \
+                     -u ref \
+                     -u ref_hi -p 10
+
+3. Send a low-priority reference, with 60 second duration:
+
+        snsref -s 60 -d ref --  0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+4. Send a high-priority reference, with one second duration.  The
+   high-priority message will be active until it expires after one
+   second.  Then, the simulator will revert to the still-valid lower
+   priority message:
+
+        snsref -s 1 -d ref_hi --  0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0

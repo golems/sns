@@ -90,3 +90,6 @@ Makefile.in
 /ref.*
 /teleop.*
 /multi.*
+/priority.aux
+/priority.log
+/priority.pdf

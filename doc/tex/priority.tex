@@ -1,0 +1,29 @@
+\documentclass{article}
+
+\usepackage{sns}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+  \node[daemon,name=sim] {sns-ksim};
+  \node[channel,name=state,right of=sim] {state};
+  \node[channel,name=ref,left of=sim,node distance=8em] {ref};
+  \node[channel,name=ref_hi,above of=ref,node distance=3em] {ref\_hi};
+  \node[daemon,name=snsref,left of=ref] {snsref};
+  \node[daemon,name=snsref_hi,left of=ref_hi] {snsref};
+
+  \draw[edge] (snsref) -- (ref);
+  \draw[edge] (snsref_hi.east) -- (ref_hi.west);
+  \draw[edge] (ref_hi.east) -- (sim.west);
+  \draw[edge] (ref) -- (sim);
+  \draw[edge] (sim) -- (state);
+\end{tikzpicture}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

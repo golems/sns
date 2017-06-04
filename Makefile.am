@@ -266,6 +266,13 @@ doc/manual/img/multi.png: doc/tex/multi.tex doc/tex/sns.sty
 	pdfcrop multi.pdf
 	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ multi-crop.pdf
 
+html_imgs += doc/manual/img/priority.png
+doc/manual/img/priority.png: doc/tex/priority.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex priority.tex
+	pdfcrop priority.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ priority-crop.pdf
+
 
 EXTRA_DIST += $(html_mans) $(html_imgs)
 doxygen: $(html_mans) $(html_imgs) doc/daemon.md doc/command.md doc/driver.md
