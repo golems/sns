@@ -55,15 +55,15 @@
 #include <sns/motor.h>
 
 struct cx {
+    struct aa_rx_sg *scenegraph;
+
     struct sns_motor_channel *ref_in;
     struct sns_motor_channel *state_out;
 
-    struct aa_rx_sg *scenegraph;
-
     struct sns_motor_ref_set *ref_set;
+    struct sns_motor_state_set *state_set;
 
     struct timespec t;
-    struct aa_ct_state *state_act;
 
     size_t n_q;
     uint64_t seq;
@@ -76,15 +76,15 @@ struct cx {
 };
 
 
-// Run io
+/* Run io */
 void io(struct cx *cx);
-// Pthreads start function for io
+/* Pthreads start function for io */
 void* io_start(void *cx);
 
-// Call periodically from io thread
+/* Call periodically from io thread */
 enum ach_status io_periodic( void *cx );
 
-// Perform a simulation step
+/* Perform a simulation step */
 enum ach_status simulate( struct cx *cx );
 
 int main(int argc, char **argv)
@@ -157,11 +157,9 @@ int main(int argc, char **argv)
     cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
 
     /* State */
-    sns_motor_channel_init(cx.state_out, cx.scenegraph);
-    cx.state_act = AA_NEW0(struct aa_ct_state);
-    cx.state_act->q = AA_NEW_AR(double,cx.n_q);
-    cx.state_act->dq = AA_NEW_AR(double,cx.n_q);
-    cx.state_act->n_q = cx.n_q;
+    sns_motor_state_init(cx.scenegraph,
+                         cx.state_out, &cx.state_set,
+                         0, NULL);
     clock_gettime(ACH_DEFAULT_CLOCK, &cx.t);
 
     /* Reference */
@@ -184,19 +182,19 @@ int main(int argc, char **argv)
              cx.period.tv_sec, cx.period.tv_nsec );
 
 
-    // Start threads
+    /* Start threads */
     pthread_t io_thread;
     if( pthread_create(&io_thread, NULL, io_start, &cx) ) {
         SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
     }
 
-    // Start GUI in main thread
+    /* Start GUI in main thread */
     cx.win = aa_rx_win_default_create ( "sns-ksim", 800, 600 );
     aa_rx_win_set_sg(cx.win, cx.scenegraph);
     sns_start();
     aa_rx_win_run();
 
-    // Stop threads
+    /* Stop threads */
     sns_cx.shutdown = 1;
     if( pthread_join(io_thread, NULL) ) {
         SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
@@ -215,7 +213,7 @@ void* io_start(void *cx) {
 }
 
 void io(struct cx *cx) {
-    // Run Loop
+    /* Run Loop */
     enum ach_status r = sns_evhandle( cx->handlers, sns_motor_channel_count(cx->ref_in),
                                       &cx->period, io_periodic, cx,
                                       sns_sig_term_default,
@@ -224,7 +222,8 @@ void io(struct cx *cx) {
                  "Could asdf not handle events: %s, %s\n",
                  ach_result_to_string(r),
                  strerror(errno) );
-    // stop window
+
+    /* stop window */
     if( cx->win ) {
         aa_rx_win_stop(cx->win);
     }
@@ -234,18 +233,17 @@ enum ach_status io_periodic( void *cx_ )
 {
     struct cx *cx = (struct cx*)cx_;
 
-    // Run simulation
+    /* Step simulation */
     simulate(cx);
 
     /* Post state */
-    sns_motor_channel_put( cx->state_out, cx->state_act,
-                           &cx->t, (int64_t)1e9 );
+    struct aa_ct_state *state = sns_motor_state_get(cx->state_set);
+    sns_motor_state_put( cx->state_set, &cx->t, (int64_t)1e9 );
 
+    /* Update display */
+    if( cx->win ) aa_rx_win_set_config( cx->win, state->n_q, state->q );
 
-    // Update display
-    if( cx->win ) aa_rx_win_set_config( cx->win, cx->n_q, cx->state_act->q );
-
-    // check cancelation
+    /* check cancelation */
     if( sns_cx.shutdown ) {
         return ACH_CANCELED;
     } else {
@@ -261,6 +259,8 @@ enum ach_status simulate( struct cx *cx )
     double dt = aa_tm_timespec2sec( aa_tm_sub(now, cx->t) );
     cx->t = now;
 
+    struct aa_ct_state *state = sns_motor_state_get(cx->state_set);
+
     /* Collect references */
     sns_motor_ref_collate(&cx->t, cx->ref_set);
 
@@ -269,8 +269,8 @@ enum ach_status simulate( struct cx *cx )
     for( size_t i = 0; i < cx->ref_set->n_q; i ++ ) {
         struct sns_motor_ref_meta *m = cx->ref_set->meta+i;
         double u = cx->ref_set->u[i];
-        double *q = cx->state_act->q+i;
-        double *dq = cx->state_act->dq+i;
+        double *q = state->q+i;
+        double *dq = state->dq+i;
         if( aa_tm_cmp(now,m->expiration) < 0 ) {
             switch(m->mode) {
             case SNS_MOTOR_MODE_POS:
@@ -280,6 +280,9 @@ enum ach_status simulate( struct cx *cx )
             case SNS_MOTOR_MODE_VEL:
                 *dq = u;
                 (*q) += dt * (*dq);
+                break;
+            case SNS_MOTOR_MODE_HALT:
+                *dq = 0;
                 break;
             default:
                 SNS_LOG(LOG_WARNING, "Unhandled mode for motor %lu", i );

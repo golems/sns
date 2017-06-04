@@ -686,35 +686,35 @@ sns_msg_motor_state_eff( struct sns_msg_motor_state *msg )
 }
 
 static inline size_t
-sns_msg_motor_state_incpos( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_incpos( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 2;
 }
 
 static inline size_t
-sns_msg_motor_state_incvel( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_incvel( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 2;
 }
 
 static inline size_t
-sns_msg_motor_state_incacc( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_incacc( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 0;
 }
 
 static inline size_t
-sns_msg_motor_state_inceff( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_inceff( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 0;
 }
 
 static inline uint32_t
-sns_msg_motor_state_count( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_count( const struct sns_msg_motor_state *msg )
 {
     return msg->header.n;
 }

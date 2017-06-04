@@ -62,20 +62,22 @@ struct joint_ctrl {
 };
 
 struct cx {
-    struct in_cx *in;
-
-    struct ach_channel ref_out;
-
     struct aa_rx_sg *scenegraph;
+
+    struct sns_motor_channel *ref_chan;
+    struct sns_motor_channel *state_chan;
+
+    struct sns_motor_ref_set *ref_set;
+    struct sns_motor_state_set *state_set;
+
+
     aa_rx_frame_id end_effector;
 
-    struct sns_evhandler handlers[2];
-    struct ach_channel channel[2];
+    struct ach_channel js_channel;
+
+     struct sns_evhandler *handlers;
 
     struct timespec period;
-
-    size_t n_q;
-    size_t n_f;
 
     struct aa_ct_state *state_act;
 
@@ -90,8 +92,6 @@ struct cx {
 static enum ach_status
 handle_js( void *cx, void *msg, size_t msg_size );
 
-static enum ach_status
-handle_state( void *cx, void *msg, size_t msg_size );
 
 static void
 teleop( struct cx *cx, struct sns_msg_joystick *msg );
@@ -107,8 +107,6 @@ main(int argc, char **argv)
     struct cx cx = {0};
     /* parse options */
     double opt_frequency = 100;
-    const char *opt_chan_state = NULL;
-    const char *opt_chan_ref = NULL;
     const char *opt_chan_joystick = NULL;
     const char *opt_end_effector = NULL;
     {
@@ -119,10 +117,10 @@ main(int argc, char **argv)
                                      "Copyright (c) 2015-2017, Rice University\n",
                                      "Neil T. Dantam")
             case 'u':
-                opt_chan_ref = optarg;
+                sns_motor_channel_push( optarg, &cx.ref_chan );
                 break;
             case 'y':
-                opt_chan_state = optarg;
+                sns_motor_channel_push( optarg, &cx.state_chan );
                 break;
             case 'j':
                 opt_chan_joystick = optarg;
@@ -174,8 +172,8 @@ main(int argc, char **argv)
         }
     }
     sns_init();
-    SNS_REQUIRE(opt_chan_state, "Need state channel");
-    SNS_REQUIRE(opt_chan_ref, "Need reference channel");
+    SNS_REQUIRE(cx.ref_chan, "Need state channel");
+    SNS_REQUIRE(cx.state_chan, "Need reference channel");
     SNS_REQUIRE(opt_chan_joystick, "Need joystick channel");
 
     /* Load Scene Plugin */
@@ -189,37 +187,36 @@ main(int argc, char **argv)
         cx.end_effector = AA_RX_FRAME_NONE;
     }
 
-    /* Init scene vars */
-    cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
-    cx.n_f = aa_rx_sg_frame_count(cx.scenegraph);
-    cx.q_ref = AA_NEW_AR(double,cx.n_q);
-    cx.dq_ref = AA_NEW_AR(double,cx.n_q);
-    cx.state_act = aa_ct_state_alloc( aa_mem_region_local_get(), cx.n_q, cx.n_f );
+    /* Reference (output) */
+    sns_motor_ref_init(cx.scenegraph,
+                       cx.ref_chan, &cx.ref_set,
+                       0, NULL );
+
+    /* Input handlers */
+    size_t n_handlers = 1 + sns_motor_channel_count(cx.state_chan);
+    cx.handlers = AA_NEW_AR(struct sns_evhandler, n_handlers);
+
+
+    /* Joystick */
+    sns_chan_open( &cx.js_channel, opt_chan_joystick, NULL );
+    cx.handlers[0].channel = &cx.js_channel;
+    cx.handlers[0].context = &cx;
+    cx.handlers[0].handler = handle_js;
+    cx.handlers[0].ach_options = 0;
     for( struct joint_ctrl *J = cx.joint_ctrl; J; J = J->next ) {
-        int r = sns_motor_map_fill_id( cx.scenegraph, J->map );
-        SNS_REQUIRE(0 == r, "Could not initialize motor map for joint control");
+        sns_motor_map_fill_id(cx.scenegraph,J->map);
     }
 
-    /* Setup channels */
-    sns_chan_open( &cx.channel[0], opt_chan_state, NULL );
-    cx.handlers[0].channel = &cx.channel[0];
-    cx.handlers[0].context = &cx;
-    cx.handlers[0].handler = handle_state;
-    cx.handlers[0].ach_options = ACH_O_LAST;
-
-    sns_chan_open( &cx.channel[1], opt_chan_joystick, NULL );
-    cx.handlers[1].channel = &cx.channel[1];
-    cx.handlers[1].context = &cx;
-    cx.handlers[1].handler = handle_js;
-    cx.handlers[1].ach_options = 0;
-
-    sns_chan_open( &cx.ref_out, opt_chan_ref, NULL );
+    /* State */
+    sns_motor_state_init(cx.scenegraph,
+                         cx.state_chan, &cx.state_set,
+                         n_handlers - 1, cx.handlers + 1 );
 
     /* Start Event Loop */
     cx.period = aa_tm_sec2timespec( 1 / opt_frequency );
     sns_start();
     enum ach_status r =
-        sns_evhandle( cx.handlers, 2,
+        sns_evhandle( cx.handlers, n_handlers,
                       &cx.period, NULL, NULL,
                       sns_sig_term_default,
                       ACH_EV_O_PERIODIC_TIMEOUT );
@@ -227,9 +224,9 @@ main(int argc, char **argv)
                  "Could not handle events: %s, %s\n",
                  ach_result_to_string(r),
                  strerror(errno) );
+
     /* Halt */
-    AA_MEM_ZERO(cx.q_ref, cx.n_q);
-    send_ref(&cx);
+    halt(&cx);
 
     sns_end();
 
@@ -255,79 +252,35 @@ enum ach_status handle_js( void *cx_, void *msg_, size_t msg_size )
 
 void teleop( struct cx *cx, struct sns_msg_joystick *msg )
 {
+    for( size_t i = 0; i < cx->ref_set->n_q; i++ ) {
+        cx->ref_set->u[i] = 0;
+        cx->ref_set->meta[i].mode = SNS_MOTOR_MODE_VEL;
+    }
+
     /* TODO: Workspace control */
-
-    AA_MEM_ZERO(cx->q_ref, cx->n_q);
-    AA_MEM_ZERO(cx->dq_ref, cx->n_q);
-
     for( struct joint_ctrl *J = cx->joint_ctrl; J; J = J->next ) {
         if( msg->buttons & (uint64_t)(1 << J->button ) ) {
             sns_motor_map_in( J->map,
                               (size_t)msg->header.n, msg->axis,
-                              cx->dq_ref );
+                              cx->ref_set->u );
 
         }
     }
 
-    send_ref(cx);
-}
-
-static void fill_state( size_t n_q, const double *msg, size_t inc_msg, double *state )
-{
-    if( msg && state ) {
-        cblas_dcopy( (int)n_q, msg, (int)inc_msg, state, 1 );
-    }
-}
-
-enum ach_status handle_state( void *cx_, void *msg_, size_t msg_size )
-{
-
-    struct cx *cx = (struct cx*)cx_;
-    struct sns_msg_motor_state *msg = (struct sns_msg_motor_state *)msg_;
-    struct aa_ct_state *X = cx->state_act;
-
-    if( sns_msg_motor_state_check_size(msg,msg_size) ) {
-        /* Invalid Message */
-        SNS_LOG(LOG_ERR, "Mismatched message size on state channel\n");
-    } else if ((size_t)sns_msg_motor_state_count(msg) != X->n_q) {
-        SNS_LOG(LOG_ERR, "Mismatched message size on state channel\n");
-    } else {
-        fill_state( X->n_q,
-                    sns_msg_motor_state_pos(msg),
-                    sns_msg_motor_state_incpos(msg),
-                    X->q );
-        fill_state( X->n_q,
-                    sns_msg_motor_state_vel(msg),
-                    sns_msg_motor_state_incvel(msg),
-                    X->dq );
-        fill_state( X->n_q,
-                    sns_msg_motor_state_acc(msg),
-                    sns_msg_motor_state_incacc(msg),
-                    X->dq );
-        fill_state( X->n_q,
-                    sns_msg_motor_state_eff(msg),
-                    sns_msg_motor_state_inceff(msg),
-                    X->dq );
-    }
-
-    return ACH_OK;
-}
-
-void send_ref( struct cx *cx )
-{
-    struct sns_msg_motor_ref *msg = sns_msg_motor_ref_local_alloc((uint32_t)cx->n_q);
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );
-    sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
+    sns_motor_ref_put( cx->ref_set, &now, 1e9 );
+}
 
-    msg->mode = SNS_MOTOR_MODE_VEL;
-    AA_MEM_CPY(msg->u, cx->dq_ref, cx->n_q);
-
-    enum ach_status r = sns_msg_motor_ref_put(&cx->ref_out, msg);
-    if( ACH_OK != r )  {
-        SNS_LOG( LOG_ERR, "Failed to put message: %s\n", ach_result_to_string(r) );
+static void
+halt( struct cx *cx )
+{
+    for( size_t i = 0; i < cx->ref_set->n_q; i++ ) {
+        cx->ref_set->meta[i].mode = SNS_MOTOR_MODE_HALT;
+        cx->ref_set->u[i]= 0;
     }
 
-    aa_mem_region_local_pop(msg);
-
+    struct timespec now;
+    clock_gettime( ACH_DEFAULT_CLOCK, &now );
+    sns_motor_ref_put( cx->ref_set, &now, 1e9 );
 }

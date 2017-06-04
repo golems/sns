@@ -217,9 +217,16 @@ variables to split the input and output over multiple channels.
         snsref -d ref_left --  1 0 0 0 0 0 0
 
 
-5. Kill the simulator:
+5. Run the joystick teleop:
 
-        sns kill bg-ksim
+        sns-teleopd -j joystick \
+                    -y state_head  -u ref_head \
+                    -y state_left  -u ref_left \
+                    -y state_right -u ref_right \
+                    -Q 4 -m "left_s0,left_s1,left_e0,left_e1" \
+                    -Q 6 -m "left_w0,left_w1,left_w2" \
+                    -Q 5 -m "right_s0,right_s1,right_e0,right_e1" \
+                    -Q 7 -m "right_w0,right_w1,right_w2"
 
 Motor Reference Priority {#tutorial_priority}
 ========================

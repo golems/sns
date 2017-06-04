@@ -193,6 +193,33 @@ struct sns_motor_ref_set {
     double *u;
 };
 
+struct sns_motor_state_elt {
+    /* Channel to read messages from */
+    struct sns_motor_channel *channel;
+
+    /** Number of axes. */
+    size_t n;
+
+    /** Global state */
+    struct aa_ct_state *state;
+
+};
+
+struct sns_motor_state_set {
+
+    /** Scenegraph for the state set */
+    const struct aa_rx_sg *scenegraph;
+
+    /** Number of elements (channels) */
+    size_t n_elt;
+
+    /** Per-channel elements  */
+    struct sns_motor_state_elt *elt;
+
+    /** Global state */
+    struct aa_ct_state *state;
+
+};
 
 /**
  * Fill q_all with values from q_sub, remapped according to M.
@@ -254,12 +281,12 @@ sns_motor_ref_collate ( const struct timespec *now,
 AA_API void
 sns_motor_channel_push( const char *name, struct sns_motor_channel **plist );
 
-/**
- * Post state to the motor channel, remapping as necessary.
- */
-AA_API void
-sns_motor_channel_put( struct sns_motor_channel *mc, const struct aa_ct_state *state,
-                       const struct timespec *now, int64_t dur_ns );
+/* /\** */
+/*  * Post state to the motor channel, remapping as necessary. */
+/*  *\/ */
+/* AA_API void */
+/* sns_motor_channel_put( struct sns_motor_channel *mc, const struct aa_ct_state *state, */
+/*                        const struct timespec *now, int64_t dur_ns ); */
 
 /**
  * Parse axes in str as remap parameters for the motor channel.
@@ -289,10 +316,34 @@ sns_motor_ref_init( const struct aa_rx_sg *scenegraph,
                     struct sns_motor_ref_set **ref_set,
                     size_t n_handlers, struct sns_evhandler *handlers );
 
+
+/**
+ * Initialize state channels
+ */
+AA_API void
+sns_motor_state_init( const struct aa_rx_sg *scenegraph,
+                      struct sns_motor_channel *list,
+                      struct sns_motor_state_set **state_set,
+                      size_t n_handlers, struct sns_evhandler *handlers );
+
+/**
+ * Return the internal state object.
+ */
+AA_API struct aa_ct_state *
+sns_motor_state_get( struct sns_motor_state_set *state_set );
+
 /**
  * Return the number of channel elements in list
  */
 size_t
 sns_motor_channel_count( struct sns_motor_channel *list );
+
+AA_API void
+sns_motor_state_put( struct sns_motor_state_set *state_set,
+                     const struct timespec *now, int64_t dur_ns );
+
+AA_API void
+sns_motor_ref_put( struct sns_motor_ref_set *ref_set,
+                   const struct timespec *now, int64_t dur_ns );
 
 #endif /* SNS_MOTOR_H */
