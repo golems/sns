@@ -277,6 +277,8 @@ sns_motor_ref_collate ( const struct timespec *now,
  * Does not open the channel.
  *
  * @sa sns_motor_channel_init()
+ * @sa sns_motor_ref_init()
+ * @sa sns_motor_state_init()
  */
 AA_API void
 sns_motor_channel_push( const char *name, struct sns_motor_channel **plist );
@@ -338,10 +340,20 @@ sns_motor_state_get( struct sns_motor_state_set *state_set );
 size_t
 sns_motor_channel_count( struct sns_motor_channel *list );
 
+/**
+ * Send out the values in state_set.
+ *
+ * @pre sns_motor_state_init() previously called on state_set
+ */
 AA_API void
 sns_motor_state_put( struct sns_motor_state_set *state_set,
                      const struct timespec *now, int64_t dur_ns );
 
+/**
+ * Send out the values in ref_set.
+ *
+ * @pre sns_motor_ref_init() previously called on ref_set
+ */
 AA_API void
 sns_motor_ref_put( struct sns_motor_ref_set *ref_set,
                    const struct timespec *now, int64_t dur_ns );

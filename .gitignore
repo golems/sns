@@ -97,3 +97,5 @@ Makefile.in
 /demo/motor-state
 /doc/tutorial-programming.md
 /demo/.libs/
+/demo/multi-ref-send
+/demo/multi-state-recv

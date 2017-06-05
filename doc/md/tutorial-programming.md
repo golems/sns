@@ -69,3 +69,24 @@ position to `STDOUT`.
 ~~~~~~~~~~~~~~~~~~~~~~{.c}
 m4_include(demo/motor-state.c)
 ~~~~~~~~~~~~~~~~~~~~~~
+
+Multiple Robots / Multiplexing {#tutorial_prog_multi}
+==============================
+
+To control multiple robots, e.g., a left and right arm, you may need
+to send/receive state/reference messages on multiple channels.
+
+
+Send Multiplexed Reference  {#tutorial_prog_multi_ref_send}
+--------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~{.c}
+m4_include(demo/multi-ref-send.c)
+~~~~~~~~~~~~~~~~~~~~~~
+
+Receive Multiplexed State  {#tutorial_prog_multi_state_recv}
+-------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~{.c}
+m4_include(demo/multi-state-recv.c)
+~~~~~~~~~~~~~~~~~~~~~~

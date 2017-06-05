@@ -270,7 +270,7 @@ sns_motor_channel_init( struct sns_motor_channel *list, const struct aa_rx_sg *s
             strcat(buf,list->name);
             char *e = getenv(buf);
             if(e) {
-                SNS_LOG(LOG_NOTICE,"Channel `%s' map: `%s'\n", list->name, e);
+                SNS_LOG(LOG_INFO,"Channel `%s' map: `%s'\n", list->name, e);
                 list->map = sns_motor_map_parse(e);
                 assert(list->map);
             }
@@ -329,23 +329,23 @@ sns_motor_state_fill ( const struct sns_msg_motor_state *msg,
 
     /* Validate */
     if( sns_msg_motor_state_count(msg) != n ) {
-        SNS_LOG(LOG_ERR, "Mistmached element count in reference message: %d, wanted %lu\n",
+        SNS_LOG(LOG_ERR, "Mismached element count in state message: %d, wanted %lu\n",
                 msg->header.n, n);
     } else {
         struct aa_ct_state *X = state_elt->state;
-        fill_state( X->n_q, map,
+        fill_state( n, map,
                     sns_msg_motor_state_pos(mmsg),
                     sns_msg_motor_state_incpos(msg),
                     X->q );
-        fill_state( X->n_q, map,
+        fill_state( n, map,
                     sns_msg_motor_state_vel(mmsg),
                     sns_msg_motor_state_incvel(msg),
                     X->dq );
-        fill_state( X->n_q, map,
+        fill_state( n, map,
                     sns_msg_motor_state_acc(mmsg),
                     sns_msg_motor_state_incacc(msg),
                     X->dq );
-        fill_state( X->n_q, map,
+        fill_state( n, map,
                     sns_msg_motor_state_eff(mmsg),
                     sns_msg_motor_state_inceff(msg),
                     X->dq );
@@ -532,6 +532,7 @@ sns_motor_state_init( const struct aa_rx_sg *scenegraph,
         struct sns_motor_channel *mc = list;
         while(mc) {
             struct sns_motor_state_elt *e = (*state_set)->elt + i;
+            e->n = mc->map ? mc->map->n : aa_rx_sg_config_count(scenegraph);
             e->channel = mc;
             e->state = (*state_set)->state;
             i++;

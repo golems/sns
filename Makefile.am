@@ -130,6 +130,14 @@ noinst_PROGRAMS += demo/motor-state
 demo_motor_state_SOURCES = demo/motor-state.c
 demo_motor_state_LDADD = libsns.la -lach -lamino
 
+noinst_PROGRAMS += demo/multi-ref-send
+demo_multi_ref_send_SOURCES = demo/multi-ref-send.c
+demo_multi_ref_send_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/multi-state-recv
+demo_multi_state_recv_SOURCES = demo/multi-state-recv.c
+demo_multi_state_recv_LDADD = libsns.la -lach -lamino
+
 bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
 
 
