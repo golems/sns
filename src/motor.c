@@ -407,7 +407,7 @@ sns_motor_ref_collate ( const struct timespec *now,
     }
 }
 
-size_t
+AA_API size_t
 sns_motor_channel_count( struct sns_motor_channel *list )
 {
     size_t n = 0;

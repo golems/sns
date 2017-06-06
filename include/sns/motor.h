@@ -337,7 +337,7 @@ sns_motor_state_get( struct sns_motor_state_set *state_set );
 /**
  * Return the number of channel elements in list
  */
-size_t
+AA_API size_t
 sns_motor_channel_count( struct sns_motor_channel *list );
 
 /**
