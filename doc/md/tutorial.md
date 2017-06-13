@@ -1,5 +1,5 @@
-Tutorial {#tutorial}
-========
+Basic Tutorial {#tutorial}
+==============
 
 [TOC]
 
@@ -68,34 +68,43 @@ int main( int argc, char **argv ) {
 Using the Simulator {#tutorial_simulator}
 ===================
 
+<div>
+<img src="img/ref.png" style="width:50%"></img>
+
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
 1. Build the Baxter demos for Amino
 
         cd amino && ./configure --enable-demo-baxter && make
 
-2. Start sns
+2. Define environment variables for the scene plugin:
+
+        export SNS_SCENE_PLUGIN=/path/to/amino/demo/urdf/baxter/.libs/libamino_baxter.so
+        export SNS_SCENE_NAME=baxter
+
+3. Start sns
 
         sns start
 
-3. Create Channels
+4. Create Channels
 
         ach mk state && ach mk ref
 
-4. Start the simulator.  Note the path to the Baxter plugin in the
-   Amino demos.
+5. Start the simulator.  It will use the plugin defined in the
+   environment variables `SNS_SCENE_PLUGIN` and `SNS_SCENE_NAME`
 
-        sns-ksim -o state -i ref \
-                 -s  amino/demo/urdf/baxter/.libs/libamino_baxter.so  -n baxter
+        sns-ksim -y state -u ref
 
-
-5. Set a position reference
+6. Set a position reference
 
         snsref -p ref --  0 -1 0 0  0 0 0 0 0 0 0 0 0 0 0
 
-6. Set a velocity reference
+7. Set a velocity reference
 
         snsref -d ref --  0 -1 0 0  0 0 0 0 0 0 0 0 0 0 0
 
-7. Stop sns
+8. Stop sns
 
         sns stop
 
@@ -108,9 +117,7 @@ Run a daemon in the background {#tutorial_background}
 
 2. We will run the simulator from the previous tutorial in the background.
 
-        sns run -d -r bg-ksim -- \
-            sns-ksim -o state -i ref \
-                     -s  amino/demo/urdf/baxter/.libs/libamino_baxter.so  -n baxter
+        sns run -d -r bg-ksim -- sns-ksim -y state -u ref
 
 3. Kill the simulator:
 
@@ -119,3 +126,141 @@ Run a daemon in the background {#tutorial_background}
 4. Stop sns
 
         sns stop
+
+Teleoperate a robot {#tutorial_teleop}
+===================
+
+
+<div>
+<img src="img/teleop.png" style="width:50%"></img>
+
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+1. Make a joystick/gamepad channel:
+
+        ach mk joystick
+
+2. Start the joystick/gamepad driver (for a 6-axis gamepad):
+
+        sns run -d -r joy -- sns-joyd -a 6
+
+
+3. Dump the joystick channel and fiddle with the joystick to see how
+   the axes and buttons are mapped on your particular hardware:
+
+        snsdump joystick joystick
+
+4. Start the simulator:
+
+        sns run -d -r bg-ksim -- sns-ksim -y state -u ref
+
+5. Start the teleoperation controller.  The `-Q` parameter controls
+   which button enables the subsequently listed set of axes.  You may
+   need to change the argument to `-Q` depending on your particular
+   joystick hardware.
+
+        sns-teleopd -j joystick \
+                    -y state \
+                    -u ref \
+                    -Q 4 -m "left_s0,left_s1,left_e0,left_e1" \
+                    -Q 6 -m "left_w0,left_w1,left_w2" \
+                    -Q 5 -m "right_s0,right_s1,right_e0,right_e1" \
+                    -Q 7 -m "right_w0,right_w1,right_w2"
+
+6. Push one of the buttons and wiggle the joystick axes to move the
+   robot.
+
+Multiple Robots {#tutorial_remap}
+==============
+
+<div>
+<img src="img/multi.png" style="width:50%"></img>
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+If you have multiple "robots," for example, a left and right arm, you
+may want to simulate these in one instance.  Compile all the robots
+into a single scenegraph. Then, we will remap the state and reference
+variables to split the input and output over multiple channels.
+
+1. Create new channels:
+
+        ach mk state_left
+        ach mk state_right
+        ach mk state_head
+        ach mk ref_left
+        ach mk ref_right
+        ach mk ref_head
+
+2. Define environment variables for axes to remap:
+
+        export SNS_CHANNEL_MAP_state_left="left_s0,left_s1,left_e0,left_e1,left_w0,left_w1,left_w2"
+        export SNS_CHANNEL_MAP_state_right="right_s0,right_s1,right_e0,right_e1,right_w0,right_w1,right_w2"
+        export SNS_CHANNEL_MAP_state_head="head_pan"
+
+        export SNS_CHANNEL_MAP_ref_left="$SNS_CHANNEL_MAP_state_left"
+        export SNS_CHANNEL_MAP_ref_right="$SNS_CHANNEL_MAP_state_right"
+        export SNS_CHANNEL_MAP_ref_head="$SNS_CHANNEL_MAP_state_head"
+
+3. Restart the simulator.  It will find the remapping parameters in
+   the environment variables.
+
+        sns run -d -r bg-ksim -- \
+            sns-ksim -y state_left  -u ref_left \
+                     -y state_right -u ref_right \
+                     -y state_head  -u ref_head
+
+4. Send a reference to the head, then the left arm
+
+        snsref -d ref_head  --  1
+        snsref -d ref_left --  1 0 0 0 0 0 0
+
+
+5. Run the joystick teleop:
+
+        sns-teleopd -j joystick \
+                    -y state_head  -u ref_head \
+                    -y state_left  -u ref_left \
+                    -y state_right -u ref_right \
+                    -Q 4 -m "left_s0,left_s1,left_e0,left_e1" \
+                    -Q 6 -m "left_w0,left_w1,left_w2" \
+                    -Q 5 -m "right_s0,right_s1,right_e0,right_e1" \
+                    -Q 7 -m "right_w0,right_w1,right_w2"
+
+Motor Reference Priority {#tutorial_priority}
+========================
+
+<div>
+<img src="img/priority.png" style="width:50%"></img>
+<div style="text-align:center; display:block"><strong>Process Diagram</strong></div>
+</div>
+
+You may wish to have multiple controllers for the robot, with some
+having priority over others.  For example, teleoperation may supersede
+trajectory tracking, and collision avoidance supersede all others.  We
+can accomplish such controller priority by through multiple,
+prioritized reference channels.
+
+1. Create a high-priority reference channel:
+
+        ach mk ref_hi
+
+2. Restart the simulator with a the higher-priority channel `ref_hi`
+   at a priority level of 10:
+
+        sns run -d -r bg-ksim -- \
+            sns-ksim -y state \
+                     -u ref \
+                     -u ref_hi -p 10
+
+3. Send a low-priority reference, with 60 second duration:
+
+        snsref -s 60 -d ref --  0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+4. Send a high-priority reference, with one second duration.  The
+   high-priority message will be active until it expires after one
+   second.  Then, the simulator will revert to the still-valid lower
+   priority message:
+
+        snsref -s 1 -d ref_hi --  0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0

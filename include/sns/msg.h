@@ -151,12 +151,29 @@ void sns_msg_set_time( struct sns_msg_header *msg, const struct timespec *now, i
  * @return the timestamp of msg
  */
 static inline struct timespec
-sns_msg_get_time( struct sns_msg_header *msg )
+sns_msg_get_time( const struct sns_msg_header *msg )
 {
     struct timespec ts;
     ts.tv_sec = msg->sec;
     ts.tv_nsec = msg->nsec;
     return ts;
+}
+
+/**
+ * Extract the message expiration time as a timespec
+ *
+ * @param[in] msg An SNS message
+ *
+ * @return the expiration time of msg
+ */
+static inline struct timespec
+sns_msg_get_expiration( const struct sns_msg_header *msg )
+{
+    struct timespec dur_ts;
+    dur_ts.tv_sec  = msg->dur_nsec / (time_t)1e9;
+    dur_ts.tv_nsec = msg->dur_nsec % (time_t)1e9;
+
+    return aa_tm_add( sns_msg_get_time(msg), dur_ts );
 }
 
 /**
@@ -654,22 +671,50 @@ sns_msg_motor_state_vel( struct sns_msg_motor_state *msg )
     return &msg->X[0].vel;
 }
 
+static inline double *
+sns_msg_motor_state_acc( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return NULL;
+}
+
+static inline double *
+sns_msg_motor_state_eff( struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return NULL;
+}
+
 static inline size_t
-sns_msg_motor_state_incpos( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_incpos( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 2;
 }
 
 static inline size_t
-sns_msg_motor_state_incvel( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_incvel( const struct sns_msg_motor_state *msg )
 {
     (void)msg;
     return 2;
+}
+
+static inline size_t
+sns_msg_motor_state_incacc( const struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 0;
+}
+
+static inline size_t
+sns_msg_motor_state_inceff( const struct sns_msg_motor_state *msg )
+{
+    (void)msg;
+    return 0;
 }
 
 static inline uint32_t
-sns_msg_motor_state_count( struct sns_msg_motor_state *msg )
+sns_msg_motor_state_count( const struct sns_msg_motor_state *msg )
 {
     return msg->header.n;
 }

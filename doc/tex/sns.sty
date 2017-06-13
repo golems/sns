@@ -1,0 +1,23 @@
+\ProvidesPackage{sns}
+
+
+%\usepackage{multimedia}
+\usepackage{color}
+\usepackage{bigstrut}
+
+\usepackage{tikz}
+\usetikzlibrary{calc,shapes.multipart,chains,arrows,shapes.callouts,shapes}
+
+\tikzset{%
+  daemon/.style = { %
+    draw=black,shape=rectangle,font=\tt,node distance=6em
+  },
+  channel/.style = { %
+    draw=black,shape=ellipse,font=\tt,node distance=6em
+  },
+  edge/.style = { %
+    ->,very thick,>=stealth
+  },
+}
+
+\thispagestyle{empty}

@@ -1,0 +1,25 @@
+\documentclass{article}
+
+\usepackage{sns}
+
+
+\begin{document}
+
+\begin{tikzpicture}
+  \node[daemon,name=sim] {sns-ksim};
+  \node[channel,name=state,right of=sim] {state};
+  \node[channel,name=ref,left of=sim] {ref};
+  \node[daemon,name=snsref,left of=ref] {snsref};
+
+  \draw[edge] (snsref) -- (ref);
+  \draw[edge] (ref) -- (sim);
+  \draw[edge] (sim) -- (state);
+\end{tikzpicture}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

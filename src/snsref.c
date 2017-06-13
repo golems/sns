@@ -71,10 +71,12 @@ int main( int argc, char **argv ) {
 
     /*-- Parse Args -- */
     int i = 0;
-    for( int c; -1 != (c = getopt(argc, argv, "?pdRHPD" SNS_OPTSTRING )); ) {
+    double opt_dur_sec = 1.0;
+    for( int c; -1 != (c = getopt(argc, argv, "?s:pdRHPD" SNS_OPTSTRING )); ) {
         switch(c) {
             SNS_OPTCASES_VERSION("snsref",
-                                 "Copyright (c) 2013, Georgia Tech Research Corporation\n",
+                                 "Copyright (c) 2013, Georgia Tech Research Corporation\n"
+                                 "Copyright (c) 2017, Rice University\n",
                                  "Neil T. Dantam")
         case 'p': opt_mode = SNS_MOTOR_MODE_POS; break;
         case 'd': opt_mode = SNS_MOTOR_MODE_VEL; break;
@@ -82,6 +84,7 @@ int main( int argc, char **argv ) {
         case 'H': opt_mode = SNS_MOTOR_MODE_HALT; break;
         case 'P': opt_mode = SNS_MOTOR_MODE_POS_OFFSET; break;
         case 'D': opt_degrees = 1; break;
+        case 's': opt_dur_sec = atof(optarg); break;
         case '?':
             puts( "Usage: snsref [OPTIONS] channel x0 x1 ... xn\n"
                   "Send a motor referece command\n"
@@ -91,6 +94,7 @@ int main( int argc, char **argv ) {
                   "  -d                           Set velocities\n"
                   "  -H                           Halt\n"
                   "  -P                           Set position offset\n"
+                  "  -s <seconds>                 Message duration (default: 1)\n"
                   "  -v,                          Make output more verbose\n"
                   "  -?,                          Give program help list\n"
                   "  -V,                          Print program version\n"
@@ -138,7 +142,7 @@ int main( int argc, char **argv ) {
 
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );
-    sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
+    sns_msg_set_time( &msg->header, &now, (int64_t)(1e9 * opt_dur_sec) ); /* 1 second duration */
 
 
     /*-- Send Message --*/

@@ -51,6 +51,12 @@
 #include <sched.h>
 #include <sys/mman.h>
 
+
+#include <amino.h>
+#include <amino/rx/rxtype.h>
+#include <amino/rx/scenegraph.h>
+#include <amino/rx/scene_plugin.h>
+
 struct sns_cx sns_cx = {0};
 
 void sns_set_ident( const char * ident) {
@@ -460,4 +466,20 @@ void sns_chan_close( ach_channel_t *chan )
     // not much to do if it fails, just log it
     SNS_CHECK( ACH_OK == r, LOG_ERR, 0,
                "Error closing channel: %s\n", ach_result_to_string(r)) ;
+}
+
+AA_API struct aa_rx_sg*
+sns_scene_load(void)
+{
+    const char *plugin = getenv("SNS_SCENE_PLUGIN");
+    const char *name = getenv("SNS_SCENE_NAME");
+
+    SNS_REQUIRE( NULL != plugin, "SNS_SCENE_PLUGIN not defined");
+    SNS_REQUIRE( NULL != name, "SNS_SCENE_NAME not defined");
+
+    struct aa_rx_sg *scenegraph = aa_rx_dl_sg(plugin, name, NULL);
+    SNS_REQUIRE( NULL != scenegraph, "Could not load scene plugin");
+
+    aa_rx_sg_init(scenegraph);
+    return scenegraph;
 }

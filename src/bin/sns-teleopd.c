@@ -45,34 +45,59 @@
 #include <amino/rx/scenegraph.h>
 #include <amino/rx/scene_plugin.h>
 
+#include <amino/ct/state.h>
+
 #include "sns.h"
 #include "sns/joystick/gamepad.h"
 #include "sns/event.h"
+#include "sns/motor.h"
+
+
+struct joint_ctrl {
+    int button;
+    struct sns_motor_map *map;
+
+    struct joint_ctrl *next;
+
+};
 
 struct cx {
-    struct in_cx *in;
-
-    struct ach_channel ref_out;
-
     struct aa_rx_sg *scenegraph;
 
-    struct sns_evhandler handlers[2];
-    struct ach_channel channel[2];
+    struct sns_motor_channel *ref_chan;
+    struct sns_motor_channel *state_chan;
+
+    struct sns_motor_ref_set *ref_set;
+    struct sns_motor_state_set *state_set;
+
+
+    aa_rx_frame_id end_effector;
+
+    struct ach_channel js_channel;
+
+    struct sns_evhandler *handlers;
 
     struct timespec period;
 
-    size_t n_q;
+    struct aa_ct_state *state_act;
 
-    double *q_act;
-    double *dq_act;
+
+    struct joint_ctrl *joint_ctrl;
 
     double *q_ref;
     double *dq_ref;
 };
 
 
-enum ach_status handle_js( void *cx, void *msg, size_t msg_size );
-enum ach_status handle_state( void *cx, void *msg, size_t msg_size );
+static enum ach_status
+handle_js( void *cx, void *msg, size_t msg_size );
+
+
+static void
+teleop( struct cx *cx, struct sns_msg_joystick *msg );
+
+static void
+halt( struct cx *cx );
 
 void send_ref( struct cx *cx );
 
@@ -82,32 +107,41 @@ main(int argc, char **argv)
     struct cx cx = {0};
     /* parse options */
     double opt_frequency = 100;
-    const char *opt_chan_state = NULL;
-    const char *opt_chan_ref = NULL;
     const char *opt_chan_joystick = NULL;
-    const char *opt_scene_plugin = NULL;
-    const char *opt_scene_name = NULL;
+    const char *opt_end_effector = NULL;
     {
         int c = 0;
-        while( (c = getopt( argc, argv, "u:y:j:s:n:h?" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "u:y:j:e:Q:m:h?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-teleopd",
                                      "Copyright (c) 2015-2017, Rice University\n",
                                      "Neil T. Dantam")
-            case 's':
-                opt_scene_plugin = optarg;
-                break;
-            case 'n':
-                opt_scene_name = optarg;
-                break;
             case 'u':
-                opt_chan_ref = optarg;
+                sns_motor_channel_push( optarg, &cx.ref_chan );
                 break;
             case 'y':
-                opt_chan_state = optarg;
+                sns_motor_channel_push( optarg, &cx.state_chan );
                 break;
             case 'j':
                 opt_chan_joystick = optarg;
+                break;
+            case 'e':
+                opt_end_effector = optarg;
+                break;
+            case 'Q':
+            {
+                struct joint_ctrl *J = AA_NEW0(struct joint_ctrl);
+                J->button = atoi(optarg);
+                J->next = cx.joint_ctrl;
+                cx.joint_ctrl = J;
+                break;
+            }
+            case 'm':
+                if( cx.joint_ctrl ) {
+                    cx.joint_ctrl->map = sns_motor_map_parse(optarg);
+                } else {
+                    SNS_DIE("Need joint-space button parameter before joint map\n");
+                }
                 break;
             case '?':   /* help     */
             case 'h':
@@ -118,13 +152,16 @@ main(int argc, char **argv)
                       "  -y <channel>,             state channel, input\n"
                       "  -j <channel>,             joystick channel, input\n"
                       "  -u <channel>,             reference channel, output\n"
-                      "  -s <plugin>,              scene plugin\n"
-                      "  -n <name>,                scene name\n"
+                      "  -e <frame>,               end-effector frame\n"
+                      "  -m <map>,                 motor map\n"
+                      "  -Q <button>,              joint-space control button\n"
                       "  -V,                       Print program version\n"
                       "  -?,                       display this help and exit\n"
                       "\n"
                       "Examples:\n"
                       "  sns-teleopd -j joystick -y state -u ref\n"
+                      "\n"
+                      "  sns-teleopd -j joystick -y state -u ref -q 1 -m s0,s1,e0 -q 2 -m w0,w1,w2\n"
                       "\n"
                       "Report bugs to " PACKAGE_BUGREPORT );
                       exit(EXIT_SUCCESS);
@@ -135,42 +172,51 @@ main(int argc, char **argv)
         }
     }
     sns_init();
-    SNS_REQUIRE(opt_chan_state, "Need state channel");
-    SNS_REQUIRE(opt_chan_ref, "Need reference channel");
+    SNS_REQUIRE(cx.ref_chan, "Need state channel");
+    SNS_REQUIRE(cx.state_chan, "Need reference channel");
     SNS_REQUIRE(opt_chan_joystick, "Need joystick channel");
-    SNS_REQUIRE(opt_scene_plugin, "Need scene plugin");
-    SNS_REQUIRE(opt_scene_name, "Need scene name");
 
     /* Load Scene Plugin */
-    cx.scenegraph = aa_rx_dl_sg(opt_scene_plugin, opt_scene_name, NULL);
-    SNS_REQUIRE( NULL != cx.scenegraph, "Could not load scene plugin");
+    cx.scenegraph = sns_scene_load();
     aa_rx_sg_init(cx.scenegraph);
-    cx.n_q = aa_rx_sg_config_count(cx.scenegraph);
-    cx.q_act = AA_NEW_AR(double,cx.n_q);
-    cx.dq_act = AA_NEW_AR(double,cx.n_q);
-    cx.q_ref = AA_NEW_AR(double,cx.n_q);
-    cx.dq_ref = AA_NEW_AR(double,cx.n_q);
 
-    /* Setup channels */
-    sns_chan_open( &cx.channel[0], opt_chan_state, NULL );
-    cx.handlers[0].channel = &cx.channel[0];
+    if( opt_end_effector ) {
+        cx.end_effector = aa_rx_sg_frame_id(cx.scenegraph,opt_end_effector);
+        SNS_REQUIRE( cx.end_effector > 0, "Invalid end-effector frame: `%s'", opt_end_effector );
+    } else {
+        cx.end_effector = AA_RX_FRAME_NONE;
+    }
+
+    /* Reference (output) */
+    sns_motor_ref_init(cx.scenegraph,
+                       cx.ref_chan, &cx.ref_set,
+                       0, NULL );
+
+    /* Input handlers */
+    size_t n_handlers = 1 + sns_motor_channel_count(cx.state_chan);
+    cx.handlers = AA_NEW_AR(struct sns_evhandler, n_handlers);
+
+
+    /* Joystick */
+    sns_chan_open( &cx.js_channel, opt_chan_joystick, NULL );
+    cx.handlers[0].channel = &cx.js_channel;
     cx.handlers[0].context = &cx;
-    cx.handlers[0].handler = handle_state;
-    cx.handlers[0].ach_options = ACH_O_LAST;
+    cx.handlers[0].handler = handle_js;
+    cx.handlers[0].ach_options = 0;
+    for( struct joint_ctrl *J = cx.joint_ctrl; J; J = J->next ) {
+        sns_motor_map_fill_id(cx.scenegraph,J->map);
+    }
 
-    sns_chan_open( &cx.channel[1], opt_chan_joystick, NULL );
-    cx.handlers[1].channel = &cx.channel[1];
-    cx.handlers[1].context = &cx;
-    cx.handlers[1].handler = handle_js;
-    cx.handlers[1].ach_options = 0;
-
-    sns_chan_open( &cx.ref_out, opt_chan_ref, NULL );
+    /* State */
+    sns_motor_state_init(cx.scenegraph,
+                         cx.state_chan, &cx.state_set,
+                         n_handlers - 1, cx.handlers + 1 );
 
     /* Start Event Loop */
     cx.period = aa_tm_sec2timespec( 1 / opt_frequency );
     sns_start();
     enum ach_status r =
-        sns_evhandle( cx.handlers, 2,
+        sns_evhandle( cx.handlers, n_handlers,
                       &cx.period, NULL, NULL,
                       sns_sig_term_default,
                       ACH_EV_O_PERIODIC_TIMEOUT );
@@ -178,9 +224,9 @@ main(int argc, char **argv)
                  "Could not handle events: %s, %s\n",
                  ach_result_to_string(r),
                  strerror(errno) );
+
     /* Halt */
-    AA_MEM_ZERO(cx.q_ref, cx.n_q);
-    send_ref(&cx);
+    halt(&cx);
 
     sns_end();
 
@@ -194,49 +240,47 @@ enum ach_status handle_js( void *cx_, void *msg_, size_t msg_size )
 
     if( sns_msg_joystick_check_size(msg,msg_size) ) {
         /* Invalid Message */
-        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+        SNS_LOG(LOG_ERR, "Mismatched message size on joystick channel\n");
     } else {
         /* Process Message */
-        AA_MEM_ZERO(cx->q_ref, cx->n_q);
-
-        for( size_t i = 0; i < cx->n_q && i < msg->header.n; i ++ ) {
-            cx->dq_ref[i] = msg->axis[i];
-        }
-
-        send_ref(cx);
+        teleop(cx,msg);
     }
-    /* TODO: Axis selection */
+
+    return ACH_OK;
+}
+
+
+void teleop( struct cx *cx, struct sns_msg_joystick *msg )
+{
+    for( size_t i = 0; i < cx->ref_set->n_q; i++ ) {
+        cx->ref_set->u[i] = 0;
+        cx->ref_set->meta[i].mode = SNS_MOTOR_MODE_VEL;
+    }
 
     /* TODO: Workspace control */
+    for( struct joint_ctrl *J = cx->joint_ctrl; J; J = J->next ) {
+        if( msg->buttons & (uint64_t)(1 << J->button ) ) {
+            sns_motor_map_in( J->map,
+                              (size_t)msg->header.n, msg->axis,
+                              cx->ref_set->u );
 
-    return ACH_OK;
-}
-
-enum ach_status handle_state( void *cx, void *msg, size_t msg_size )
-{
-    /* TODO */
-    (void)cx;
-    (void)msg;
-    (void)msg_size;
-
-    return ACH_OK;
-}
-
-void send_ref( struct cx *cx )
-{
-    struct sns_msg_motor_ref *msg = sns_msg_motor_ref_local_alloc((uint32_t)cx->n_q);
-    struct timespec now;
-    clock_gettime( ACH_DEFAULT_CLOCK, &now );
-    sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
-
-    msg->mode = SNS_MOTOR_MODE_VEL;
-    AA_MEM_CPY(msg->u, cx->dq_ref, cx->n_q);
-
-    enum ach_status r = sns_msg_motor_ref_put(&cx->ref_out, msg);
-    if( ACH_OK != r )  {
-        SNS_LOG( LOG_ERR, "Failed to put message: %s\n", ach_result_to_string(r) );
+        }
     }
 
-    aa_mem_region_local_pop(msg);
+    struct timespec now;
+    clock_gettime( ACH_DEFAULT_CLOCK, &now );
+    sns_motor_ref_put( cx->ref_set, &now, 1e9 );
+}
 
+static void
+halt( struct cx *cx )
+{
+    for( size_t i = 0; i < cx->ref_set->n_q; i++ ) {
+        cx->ref_set->meta[i].mode = SNS_MOTOR_MODE_HALT;
+        cx->ref_set->u[i]= 0;
+    }
+
+    struct timespec now;
+    clock_gettime( ACH_DEFAULT_CLOCK, &now );
+    sns_motor_ref_put( cx->ref_set, &now, 1e9 );
 }

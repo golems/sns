@@ -3,6 +3,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 EXTRA_DIST =
 bin_PROGRAMS =
+noinst_PROGRAMS =
 bin_SCRIPTS =
 
 include_HEADERS = include/sns.h
@@ -19,8 +20,8 @@ init_ddir = $(sysconfdir)/init.d
 init_d_SCRIPTS = scripts/sns
 
 lib_LTLIBRARIES = libsns.la
-libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c src/event.c
-libsns_la_LIBADD = $(AMINO_LIBS) $(ACH_LIBS)
+libsns_la_SOURCES = src/msg.c src/daemon.c src/util.c src/msg/path.c src/event.c src/motor.c
+libsns_la_LIBADD = -lach -lamino -lach-experimental
 
 ## PLUGINS
 lib_LTLIBRARIES += libsns_msg_joystick.la
@@ -125,6 +126,23 @@ bin_PROGRAMS += sns-joyd
 sns_joyd_SOURCES = src/driver/joystick/joyd.c src/driver/joystick/js.c
 sns_joyd_LDADD = libsns.la -lach -lamino
 
+
+noinst_PROGRAMS += demo/motor-ref
+demo_motor_ref_SOURCES = demo/motor-ref.c
+demo_motor_ref_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/motor-state
+demo_motor_state_SOURCES = demo/motor-state.c
+demo_motor_state_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/multi-ref-send
+demo_multi_ref_send_SOURCES = demo/multi-ref-send.c
+demo_multi_ref_send_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/multi-state-recv
+demo_multi_state_recv_SOURCES = demo/multi-state-recv.c
+demo_multi_state_recv_LDADD = libsns.la -lach -lamino
+
 bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
 
 
@@ -206,50 +224,85 @@ doc/sns-teleopd.1: $(top_builddir)/sns-teleopd $(top_srcdir)/configure.ac
 	$(MKDIR_P) doc
 	$(HELP2MAN) --version-option="-V" --no-info -n "Teleoperation Daemon" $(top_builddir)/$< -o $@
 
-if HAVE_GROFF
 
 html_mans =
+html_imgs =
 
-html_mans += doc/manual/bin/sns.html
-doc/manual/bin/sns.html: doc/sns.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+ROFFIT_PROC=roffit --bare < $< | sed -e 's/This HTML.*//' > $@
+
+html_mans += doc/sns.html
+doc/sns.html: doc/sns.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/snsref.html
+doc/snsref.html: doc/snsref.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/snsdump.html
+doc/snsdump.html: doc/snsdump.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/snslogd.html
+doc/snslogd.html: doc/snslogd.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/sns-ksim.html
+doc/sns-ksim.html: doc/sns-ksim.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/sns-joyd.html
+doc/sns-joyd.html: doc/sns-joyd.1
+	$(ROFFIT_PROC)
+
+html_mans += doc/sns-teleopd.html
+doc/sns-teleopd.html: doc/sns-teleopd.1
+	$(ROFFIT_PROC)
+
+doc/daemon.md: doc/md/daemon.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
+doc/command.md: doc/md/command.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
+doc/driver.md: doc/md/driver.md $(html_mans)
+	m4 --prefix-builtins $< > $@
+
+doc/tutorial-programming.md: doc/md/tutorial-programming.md demo/motor-ref.c demo/motor-state.c
+	m4 --prefix-builtins $< > $@
 
 
-html_mans += doc/manual/bin/snsref.html
-doc/manual/bin/snsref.html: doc/snsref.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_imgs += doc/manual/img/ref.png
+doc/manual/img/ref.png: doc/tex/ref.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex ref.tex
+	pdfcrop ref.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ ref-crop.pdf
 
-html_mans += doc/manual/bin/snsdump.html
-doc/manual/bin/snsdump.html: doc/snsdump.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_imgs += doc/manual/img/teleop.png
+doc/manual/img/teleop.png: doc/tex/teleop.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex teleop.tex
+	pdfcrop teleop.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ teleop-crop.pdf
 
-html_mans += doc/manual/bin/snslogd.html
-doc/manual/bin/snslogd.html: doc/snslogd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_imgs += doc/manual/img/multi.png
+doc/manual/img/multi.png: doc/tex/multi.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex multi.tex
+	pdfcrop multi.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ multi-crop.pdf
 
-html_mans += doc/manual/bin/sns-ksim.html
-doc/manual/bin/sns-ksim.html: doc/sns-ksim.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+html_imgs += doc/manual/img/priority.png
+doc/manual/img/priority.png: doc/tex/priority.tex doc/tex/sns.sty
+	$(MKDIR_P) doc/manual/img
+	TEXINPUTS=$(top_srcdir)/doc/tex:$(TEXINPUTS) pdflatex priority.tex
+	pdfcrop priority.pdf
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=$@ priority-crop.pdf
 
-html_mans += doc/manual/bin/sns-joyd.html
-doc/manual/bin/sns-joyd.html: doc/sns-joyd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
 
-html_mans += doc/manual/bin/sns-teleopd.html
-doc/manual/bin/sns-teleopd.html: doc/sns-teleopd.1
-	$(MKDIR_P) doc/manual/bin
-	$(GROFF) -mandoc -Thtml < $< > $@
+EXTRA_DIST += $(html_mans) $(html_imgs)
+doxygen: $(html_mans) $(html_imgs) doc/daemon.md doc/command.md doc/driver.md doc/tutorial-programming.md
 
-EXTRA_DIST += $(html_mans)
-doxygen: $(html_mans)
-
-endif
 
 endif
 
