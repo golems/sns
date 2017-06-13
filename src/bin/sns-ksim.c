@@ -50,7 +50,6 @@
 
 struct cx;
 
-
 struct in_cx {
     struct ach_channel channel;
     const char *name;
@@ -268,9 +267,9 @@ enum ach_status handle_msg( void *cx_, void *msg_, size_t frame_size )
     if( frame_size < sizeof(struct sns_msg_header) ) {
         SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
     } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
-        SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
+        SNS_LOG(LOG_ERR, "Mismatched message size on channel\n");
     } else if( msg->header.n != cx->n_q ) {
-        SNS_LOG(LOG_ERR, "Mistmatched element count in reference message\n");
+        SNS_LOG(LOG_ERR, "Mismatched element count in reference message\n");
     } else {
         // Message looks OK
         SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
@@ -320,6 +319,9 @@ enum ach_status simulate( struct cx *cx )
     struct timespec now;
     clock_gettime(ACH_DEFAULT_CLOCK, &now);
     double dt = aa_tm_timespec2sec( aa_tm_sub(now, cx->t) );
+
+    printf("%f\n",dt);
+    
     cx->t = now;
     int n_q = (int)cx->n_q;
 
@@ -334,7 +336,7 @@ enum ach_status simulate( struct cx *cx )
     }
     cx->have_q_ref = 0;
     cx->have_dq_ref = 0;
-
+   
     // Integrate (euler step)
     cblas_daxpy(n_q, dt, cx->dq_act, 1, cx->q_act, 1 );
 

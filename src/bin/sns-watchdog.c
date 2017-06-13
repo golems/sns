@@ -121,7 +121,7 @@ int main(int argc, char **argv)
             case '?':   /* help     */
             case 'h':
                 puts( "Usage: sns-watchdog -j <ref_in-channel> -u <ref_out-channel> -y <state-channel>\n"
-                      "Teleop a robot.\n"
+                      "Watches for robot collisions and stops if there are any.\n"
                       "\n"
                       "Options:\n"
                       "  -y <channel>,             state channel, input\n"
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
 
 
     printf("about to start event loop\n");
-    
+
     /* Start Event Loop */
     cx.period = aa_tm_sec2timespec( 1 / opt_frequency );
     sns_start();
@@ -242,7 +242,7 @@ enum ach_status handle_state( void *cx_, void *msg_, size_t msg_size )
     printf("state in\n");
     struct cx *cx = (struct cx*)cx_;
     struct sns_msg_motor_state *msg = (struct sns_msg_motor_state *)msg_;
-    
+
     if( sns_msg_motor_state_check_size(msg,msg_size) ) {
         /* Invalid Message */
         SNS_LOG(LOG_ERR, "Mistmatched message size on channel\n");
@@ -285,13 +285,13 @@ int test_for_collisions( struct cx *cx ) {
     cx->have_dq_ref = 0;
     */
     // Integrate (euler step)
-    
+
     double *q_act_copy;
     q_act_copy = (double*) aa_mem_region_local_alloc(sizeof(cx->q_act[0]) * (size_t)n_q);
     memcpy(q_act_copy, cx->q_act, sizeof(cx->q_act[0]) * (size_t)n_q);
     //TODO: what should the time step be?
     cblas_daxpy(n_q, 2*dt, cx->dq_act, 1, cx->q_act, 1);
-    
+
     struct aa_rx_sg *scenegraph = cx->scenegraph;//sns_scene_load();
     aa_rx_sg_cl_init(scenegraph);
     aa_rx_sg_init(scenegraph);
@@ -304,11 +304,11 @@ int test_for_collisions( struct cx *cx ) {
     //
     size_t n_tf = aa_rx_sg_frame_count(scenegraph);
 
-    
+
     if((size_t)n_q != aa_rx_sg_config_count(scenegraph)) {
         printf("n_q not set correctly.");
     }
-        
+
     printf("n_q = %d; n_tf = %lu, dt = %f\n", n_q, n_tf, dt);
 
     double *TF = (double*) aa_mem_region_local_alloc(14*n_tf*sizeof(double));
@@ -320,7 +320,7 @@ int test_for_collisions( struct cx *cx ) {
       printf("TF_rel[%lu] = %f; TF_abs[%lu] = %f\n", i, TF_rel[i], i, TF_abs[i]);
     }
     */
-    
+
     if( aa_rx_cl_check(cl, n_tf, TF_abs, 14, NULL)) {
         memcpy(cx->q_act, q_act_copy, sizeof(cx->q_act[0]) * (size_t)n_q);
         aa_mem_region_local_pop(TF);
@@ -328,7 +328,7 @@ int test_for_collisions( struct cx *cx ) {
         printf("collision found\n");
         return 1;//dt = 0.0; //send message to halt
     }
-    
+
     memcpy(cx->q_act, q_act_copy, sizeof(cx->q_act[0]) * (size_t)n_q);
     aa_mem_region_local_pop(TF);
     aa_mem_region_local_pop(q_act_copy);
@@ -349,7 +349,7 @@ void send_ref( struct cx *cx )
     for(size_t i = 0; i < cx->n_q; i++) {
         cx->dq_ref[i] = 0.0;
     }
-    
+
     AA_MEM_CPY(msg->u, cx->dq_ref, cx->n_q);
 
     enum ach_status r = sns_msg_motor_ref_put(&cx->ref_out, msg);
