@@ -77,6 +77,7 @@ Makefile.in
 /doc/logtest
 /sns-joyd
 /sns-teleopd
+/sns-watchdog
 /doc/command.md
 /doc/daemon.md
 /doc/driver.md

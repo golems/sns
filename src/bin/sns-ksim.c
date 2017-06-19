@@ -235,42 +235,6 @@ void io(struct cx *cx) {
     }
 }
 
-enum ach_status handle_msg( void *cx_, void *msg_, size_t frame_size )
-{
-    struct sns_msg_motor_ref *msg = (struct sns_msg_motor_ref *)msg_;
-    struct in_cx *cx_in = (struct in_cx*)cx_;
-    struct cx *cx = cx_in->cx;
-
-    if( frame_size < sizeof(struct sns_msg_header) ) {
-        SNS_LOG(LOG_ERR, "Invalid message size on channel\n");
-    } else if( sns_msg_motor_ref_check_size(msg,frame_size) ) {
-        SNS_LOG(LOG_ERR, "Mismatched message size on channel\n");
-    } else if( msg->header.n != cx->n_q ) {
-        SNS_LOG(LOG_ERR, "Mismatched element count in reference message\n");
-    } else {
-        // Message looks OK
-        SNS_LOG(LOG_DEBUG, "Got a message on channel %s\n", cx_in->name )
-            switch(msg->mode) {
-            case SNS_MOTOR_MODE_POS:
-                for( size_t i = 0; i < cx->n_q; i ++ ) {
-                    cx->q_ref[i] = msg->u[i];
-                }
-                cx->have_q_ref = 1;
-                break;
-            case SNS_MOTOR_MODE_VEL:
-                for( size_t i = 0; i < cx->n_q; i ++ ) {
-                    cx->dq_ref[i] = msg->u[i];
-                }
-                cx->have_dq_ref = 1;
-                break;
-            default:
-                SNS_LOG(LOG_WARNING, "Unhandled motor mode: `%s'", sns_motor_mode_str(msg->mode));
-            }
-    }
-
-    return ACH_OK;
-}
-
 enum ach_status io_periodic( void *cx_ )
 {
     struct cx *cx = (struct cx*)cx_;
@@ -300,32 +264,7 @@ enum ach_status simulate( struct cx *cx )
     clock_gettime(ACH_DEFAULT_CLOCK, &now);
     double dt = aa_tm_timespec2sec( aa_tm_sub(now, cx->t) );
 
-    printf("%f\n",dt);
-
     cx->t = now;
-    int n_q = (int)cx->n_q;
-
-    // Set Refs
-    if( cx->have_q_ref ) {
-        // Set ref pos
-        cblas_dcopy( n_q, cx->q_ref, 1, cx->q_act, 1 );
-        AA_MEM_ZERO(cx->dq_act, cx->n_q);
-    } else if( cx->have_dq_ref ) {
-        // Set ref vel
-        cblas_dcopy( n_q, cx->dq_ref, 1, cx->dq_act, 1 );
-    }
-    cx->have_q_ref = 0;
-    cx->have_dq_ref = 0;
-
-    // Integrate (euler step)
-    cblas_daxpy(n_q, dt, cx->dq_act, 1, cx->q_act, 1 );
-
-    return ACH_OK;
-}
-
-void put_state( struct cx *cx )
-{
-    struct sns_msg_motor_state *msg = sns_msg_motor_state_local_alloc((uint32_t)cx->n_q);
 
     struct aa_ct_state *state = sns_motor_state_get(cx->state_set);
 
@@ -356,7 +295,6 @@ void put_state( struct cx *cx )
                 SNS_LOG(LOG_WARNING, "Unhandled mode for motor %lu", i );
             }
         } else {
-            /* reference has expired */
             *dq = 0;
         }
     }
