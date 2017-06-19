@@ -113,7 +113,6 @@ sns_ksim_SOURCES = src/bin/sns-ksim.c
 sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
 
 bin_PROGRAMS += sns-watchdog
-sns_watchdog_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
 sns_watchdog_SOURCES = src/bin/sns-watchdog.c
 sns_watchdog_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl -lamino-collision
 

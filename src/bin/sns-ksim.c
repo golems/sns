@@ -75,12 +75,6 @@ struct cx {
 
 };
 
-struct in_cx {
-    struct ach_channel channel;
-    const char *name;
-    struct cx *cx;
-};
-
 
 /* Run io */
 void io(struct cx *cx);
@@ -295,6 +289,7 @@ enum ach_status simulate( struct cx *cx )
                 SNS_LOG(LOG_WARNING, "Unhandled mode for motor %lu", i );
             }
         } else {
+            /* reference has expired. */
             *dq = 0;
         }
     }
