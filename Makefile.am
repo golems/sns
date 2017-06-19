@@ -117,6 +117,10 @@ sns_watchdog_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
 sns_watchdog_SOURCES = src/bin/sns-watchdog.c
 sns_watchdog_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl -lamino-collision
 
+bin_PROGRAMS += sns-pblend
+sns_pblend_SOURCES = src/bin/sns-pblend.c
+sns_pblend_LDADD = libsns.la -lach-experimental -lach -lamino
+
 bin_PROGRAMS += sns-teleopd
 sns_teleopd_SOURCES = src/bin/sns-teleopd.c
 sns_teleopd_LDADD = libsns.la -lach-experimental -lach -lamino

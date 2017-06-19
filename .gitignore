@@ -76,6 +76,7 @@ Makefile.in
 /doc/doxygen_sqlite3.db
 /doc/logtest
 /sns-joyd
+/sns-pblend
 /sns-teleopd
 /sns-watchdog
 /doc/command.md
