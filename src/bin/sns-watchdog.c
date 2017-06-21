@@ -258,7 +258,7 @@ enum ach_status handle_state( void *cx_, void *msg_, size_t msg_size )
 
         for( size_t i = 0; i < cx->n_q && i < msg->header.n; i++) {
             cx->q_act[i] = msg->X[i].pos;
-	    cx->dq_act[i] = msg->X[i].vel;
+            cx->dq_act[i] = msg->X[i].vel;
         }
     }
     return ACH_OK;
@@ -283,7 +283,7 @@ int test_for_collisions( struct cx *cx ) {
     q_act_copy = (double*) aa_mem_region_local_alloc(sizeof(cx->q_act[0]) * (size_t)n_q);
     memcpy(q_act_copy, cx->q_act, sizeof(cx->q_act[0]) * (size_t)n_q);
     /* TODO: what should the time step be? */
-    cblas_daxpy((int)n_q, 2*dt, cx->dq_act, 1, cx->q_act, 1);
+    cblas_daxpy((int)n_q, 3*dt, cx->dq_act, 1, cx->q_act, 1);
 
     struct aa_rx_sg *scenegraph = cx->scenegraph;
 
@@ -322,6 +322,7 @@ int test_for_collisions( struct cx *cx ) {
         aa_mem_region_local_pop(TF);
         aa_mem_region_local_pop(q_act_copy);
         printf("collision found\n");
+        fflush(stdout);
         return 1;
     }
 
@@ -353,5 +354,6 @@ void send_ref( struct cx *cx )
     }
 
     aa_mem_region_local_pop(msg);
+    fflush(stdout);
 
 }

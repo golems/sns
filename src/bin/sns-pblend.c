@@ -138,10 +138,10 @@ int main(int argc, char **argv)
         aa_rx_sg_get_limit_eff(scenegraph, id, &ddqmin, &ddqmax);
 
         min_lim->q[i]   = qmin;
-        min_lim->dq[i]  = dqmin;
+        min_lim->dq[i]  = dqmin / 10;
         min_lim->ddq[i] = ddqmin / 100; /* The URs are REALLY fast, let's slow that down. */
         max_lim->q[i]   = qmax;
-        max_lim->dq[i]  = dqmax;
+        max_lim->dq[i]  = dqmax / 10;
         max_lim->ddq[i] = ddqmax / 100;
         printf("Config %s limits [%zu]\n\t Max: q = %f, dq = %f, ddq = %f\n\t "
                "Min: q = %f, dq = %f, ddq = %f\n",

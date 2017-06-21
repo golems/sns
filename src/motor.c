@@ -401,8 +401,11 @@ sns_motor_ref_collate ( const struct timespec *now,
         } else {
             /* copy */
             for( size_t j = 0; j < e->n && j < set->n_q; j ++ ) {
+                //printf("%f -> ", e->u[j]);
                 collate1(now, e, set, e->u[j], j);
+                //printf("%f\n", e->u[j]);
             }
+            //printf("\n\n");
         }
     }
 }

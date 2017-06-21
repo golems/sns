@@ -72,7 +72,6 @@ struct cx {
 
     struct sns_evhandler *handlers;
     struct timespec period;
-
 };
 
 
