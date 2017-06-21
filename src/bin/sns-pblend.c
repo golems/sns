@@ -49,11 +49,8 @@ int main(int argc, char **argv)
     AA_MEM_ZERO(&blend_cx, 1);
     AA_MEM_ZERO(&follow_cx, 1);
 
-    const double opt_sim_frequency = 100;
-    long period_ns = (long)(1e9 / opt_sim_frequency);
-    struct timespec period;
-    period.tv_sec = (time_t) period_ns / (time_t)1e9;
-    period.tv_nsec = period_ns % (long)1e9;
+    const double opt_sim_frequency = 110;
+    struct timespec period = aa_tm_sec2timespec( 1 / opt_sim_frequency);
 
     struct sns_motor_channel *last_mc = NULL;
 
@@ -160,9 +157,9 @@ int main(int argc, char **argv)
 
     // TODO: make these params command line args with these as defaults.
     follow_cx.mode = SNS_MOTOR_MODE_VEL;
-    follow_cx.k_p = 0.5;
+    follow_cx.k_p = 4.0;
     follow_cx.frequency = opt_sim_frequency;
-    follow_cx.max_diverge = 0.4;
+    follow_cx.max_diverge = 0.6;
 
     follow_cx.new_traj = false;
     follow_cx.seg_list = NULL;
@@ -260,37 +257,44 @@ enum ach_status handle_follow_state(void *cx_, void *msg_, size_t msg_size)
         return (ACH_OK);
     }
 
+    struct aa_ct_state *ideal = aa_ct_state_alloc(cx->reg, n_q, 0);
+    struct aa_ct_state *current = aa_ct_state_alloc(cx->reg, n_q, 0);
+    for (size_t i = 0; i < n_q; i++) {
+        current->q[i] = msg->X[i].pos;
+        current->dq[i] = msg->X[i].vel;
+    }
     if (cx->new_traj == true) {
-        /* Don't start if we're not close to the start state yet. */
-        struct aa_ct_state *ideal = aa_ct_state_alloc(cx->reg, n_q, 0);
-        struct aa_ct_state *current = aa_ct_state_alloc(cx->reg, n_q, 0);
         aa_ct_seg_list_eval(cx->seg_list, ideal, 0);
-        for (size_t i = 0; i < n_q; i++) {
-            current->q[i] = msg->X[i].pos;
-            current->dq[i] = msg->X[i].vel;
-        }
+        /* Don't start if we're not close to the start state yet. */
         if (aa_veq(n_q, ideal->q, current->q, 0.05)) {
             cx->start_time = seconds;
             cx->new_traj = false;
         } else {
             /* Control yourself over there. */
-            enum ach_status r = exert_control(ideal, msg, cx, n_q, &now);
+            enum ach_status ret = exert_control(ideal, msg, cx, n_q, &now);
             aa_mem_region_local_pop(ideal);
             aa_mem_region_local_pop(current);
-            return r;
+            return ret;
         }
     }
 
     double reltime = seconds - cx->start_time;
-    struct aa_ct_state *ideal = aa_ct_state_alloc(cx->reg, n_q, 0);
     int r = aa_ct_seg_list_eval(cx->seg_list, ideal, reltime);
 
     if (reltime >= aa_ct_seg_list_duration(cx->seg_list) ||
         r == AA_CT_SEG_OUT) {
-        // We've extended beyond past the end of the trajectory. Reset and shoot a message to the
+        // We've extended past the end of the trajectory. Reset and shoot a message to the
         // the path sender.
-        send_finish_and_stop(cx, &now, OKAY);
-        return (ACH_OK);
+	if (aa_veq(n_q, ideal->q, current->q, 0.05)) {
+            send_finish_and_stop(cx, &now, OKAY);
+            return (ACH_OK); 
+	} else {
+	    /* Control yourself to the end, you're not there yet. */
+            enum ach_status ret = exert_control(ideal, msg, cx, n_q, &now);
+            aa_mem_region_local_pop(ideal);
+            aa_mem_region_local_pop(current);
+            return ret;
+	}
     }
 
     enum ach_status status = exert_control(ideal, msg, cx, n_q, &now);
@@ -311,6 +315,7 @@ enum ach_status exert_control(
         diverge_amount += fabs(ideal->q[i] - current->X[i].pos);
     }
     if (diverge_amount > cx->max_diverge) {
+	printf("Diverged by %f\n", diverge_amount);
         send_finish_and_stop(cx, now, DIVERGED);
         return (ACH_OK);
     }
@@ -325,7 +330,6 @@ enum ach_status exert_control(
         }
     } else if (cx->mode == SNS_MOTOR_MODE_VEL) {
         for (size_t i = 0; i < n_q; i++) {    aa_mem_region_local_pop(ideal);
-
             out_msg->u[i] = ideal->dq[i] - cx->k_p * (current->X[i].pos - ideal->q[i]);
         }
     } else {
