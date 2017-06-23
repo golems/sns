@@ -13,11 +13,28 @@ uint32_t N_STEPS = 4;
 /** Number of degrees of freedom of the robot (the UR5 in this case.) */
 uint32_t N_DOF = 12;
 
-/** Waypoint path positions: 0 -> (N_DOF - 1) = joints at point 1... */
-double positions[] = {
+/** 3 different waypoint path positions: 0 -> (N_DOF - 1) = joints at point 1... */
+/** Waypoint path with no collisions. */
+double no_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     1.6,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+};
+
+/** Waypoint path that collides with the table between points 2 and 3.*/
+double env_colliding_positions[] = {
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+};
+
+/** Waypoint path that makes the robot collide with its own links.  */
+double self_colliding_positions[] = {
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.6,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
@@ -29,6 +46,7 @@ int main(void)
     sns_chan_open(&channel_path, "follow_path", NULL);
     struct sns_msg_path_dense *path = sns_msg_path_dense_alloc(N_STEPS, N_DOF);
 
+    double *positions = no_collision_positions;
     /* Put the positions array into the path message. */
     for (size_t i = 0; i < N_STEPS * N_DOF; i++) {
         path->x[i] = positions[i];

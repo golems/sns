@@ -46,20 +46,30 @@ int main(int argc, char **argv)
 {
     struct traj_blend_cx blend_cx;
     struct traj_follow_cx follow_cx;
+
     AA_MEM_ZERO(&blend_cx, 1);
     AA_MEM_ZERO(&follow_cx, 1);
 
-    const double opt_sim_frequency = 110;
-    struct timespec period = aa_tm_sec2timespec( 1 / opt_sim_frequency);
+    /* Defaults: must set before we parse the input args.  */
+    follow_cx.mode = SNS_MOTOR_MODE_VEL;
+    follow_cx.k_p = 8.0;
+    follow_cx.frequency = 110;
+    follow_cx.max_diverge = 0.2;
+
+    follow_cx.new_traj = false;
+    follow_cx.seg_list = NULL;
+
+    struct timespec period = aa_tm_sec2timespec( (1 / follow_cx.frequency) * 4);
 
     struct sns_motor_channel *last_mc = NULL;
 
     char *path_channel_name = NULL;
+    char *finished_channel_name = NULL;
     /* Parse options. */
     {
         int c = 0;
         opterr = 0;
-        while ( (c = getopt( argc, argv, "y:u:p:w:h?" SNS_OPTSTRING)) != -1) {
+        while ( (c = getopt( argc, argv, "y:u:p:w:m:k:f:h:?" SNS_OPTSTRING)) != -1) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-pblend",
                                       "Copyright (c) 2017, Rice University\n",
@@ -72,15 +82,30 @@ int main(int argc, char **argv)
                     sns_motor_channel_push(optarg, &follow_cx.ref_out);
                     last_mc = follow_cx.ref_out;
                     break;
-                case 'w':
-                    path_channel_name = optarg;
-                    break;
                 case 'p':
                     if (last_mc) {
                         last_mc->priority = atoi(optarg);
                     } else {
                         SNS_DIE("No channel specificd or priority argument.");
                     }
+                    break;
+                case 'w':
+                    path_channel_name = optarg;
+                    break;
+                case 'f':
+                    finished_channel_name = optarg;
+                    break;
+                case 'm':
+                    if (strcmp(optarg, "VEL") == 0) {
+                        follow_cx.mode = SNS_MOTOR_MODE_VEL;
+                    } else if (strcmp(optarg, "POS") == 0) {
+                        follow_cx.mode = SNS_MOTOR_MODE_POS;
+                    } else {
+                        SNS_DIE("Unknown motor mode: '%s'\n", optarg);
+                    }
+                    break;
+                case 'k':
+                    follow_cx.k_p = atoi(optarg);
                     break;
                 case '?':
                 case 'h':
@@ -89,8 +114,12 @@ int main(int argc, char **argv)
                                   "Options:\n"
                                   "  -y <channel>,             state input channel\n"
                                   "  -u <channel>,             reference output channel\n"
+                                  "  -p <priority>,            reference/state channel priority\n"
                                   "  -w <channel>,             waypoint path input channel\n"
-                                  "  -p <priority>,            channel priority\n"
+                                  "  -f <channel>              finished reply output channel\n"
+                                  "  -m <VEL or POS>           motor control mode, default = VEL\n"
+                                  "  -k <gain>                 proportional gain for the controller"
+                                                            ", default = 8.0\n"
                                   "  -V,                       Print program version\n"
                                   "  -?/-h,                    display this help and exit\n"
                                   "\n"
@@ -112,6 +141,7 @@ int main(int argc, char **argv)
     SNS_REQUIRE(follow_cx.state_in, "Need state channel");
     SNS_REQUIRE(follow_cx.ref_out, "Need reference channel");
     SNS_REQUIRE(path_channel_name != NULL, "Need path channel");
+    SNS_REQUIRE(finished_channel_name != NULL, "Need finished channel");
 
     follow_cx.reg = aa_mem_region_local_get();
 
@@ -152,17 +182,8 @@ int main(int argc, char **argv)
     blend_cx.limits->min = min_lim;
 
     sns_chan_open(&blend_cx.path_in, path_channel_name, NULL);
-    sns_chan_open(&follow_cx.finished_out, "path_finished", NULL); /* TODO: pass in as CLI arg. */
+    sns_chan_open(&follow_cx.finished_out, finished_channel_name, NULL);
     blend_cx.follow_cx = &follow_cx;
-
-    // TODO: make these params command line args with these as defaults.
-    follow_cx.mode = SNS_MOTOR_MODE_VEL;
-    follow_cx.k_p = 4.0;
-    follow_cx.frequency = opt_sim_frequency;
-    follow_cx.max_diverge = 0.6;
-
-    follow_cx.new_traj = false;
-    follow_cx.seg_list = NULL;
 
     /* Setup Event Handler. */
     struct sns_evhandler handlers[2];
@@ -287,7 +308,7 @@ enum ach_status handle_follow_state(void *cx_, void *msg_, size_t msg_size)
         // the path sender.
 	if (aa_veq(n_q, ideal->q, current->q, 0.05)) {
             send_finish_and_stop(cx, &now, OKAY);
-            return (ACH_OK); 
+            return (ACH_OK);
 	} else {
 	    /* Control yourself to the end, you're not there yet. */
             enum ach_status ret = exert_control(ideal, msg, cx, n_q, &now);
@@ -310,14 +331,12 @@ enum ach_status exert_control(
         size_t n_q,
         struct timespec *now) {
     /* Check to see that the position hasn't diverged too much. */
-    double diverge_amount = 0.0;
     for (size_t i = 0; i < n_q; i++) {
-        diverge_amount += fabs(ideal->q[i] - current->X[i].pos);
-    }
-    if (diverge_amount > cx->max_diverge) {
-	printf("Diverged by %f\n", diverge_amount);
-        send_finish_and_stop(cx, now, DIVERGED);
-        return (ACH_OK);
+        if (fabs(ideal->q[i] - current->X[i].pos) > cx->max_diverge) {
+            printf("Diverged by %f at joint %zu\n", fabs(ideal->q[i] - current->X[i].pos), i);
+            send_finish_and_stop(cx, now, DIVERGED);
+            return (ACH_OK);
+        }
     }
 
     /* Send the motor reference message. */

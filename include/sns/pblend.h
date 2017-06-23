@@ -104,7 +104,7 @@ struct traj_follow_cx {
     /** The proportional gain when following a trajectory. */
     double k_p;
 
-    /** The maximum configuration distance that the robot can diverge before halting. */
+    /** The maximum distance at a single condfiguration that the robot can diverge before halting. */
     double max_diverge;
 
     /** The frequency of the robot driver. Determines the duration of each ref. */
