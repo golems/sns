@@ -181,9 +181,11 @@ int main(int argc, char **argv)
 
     sns_chan_open( &cx.ref_out, opt_chan_ref, NULL );
 
-    printf("about to start event loop\n");
     for (aa_rx_frame_id i = 0; i < aa_rx_sg_frame_count(cx.scenegraph); i++) {
-        printf("Frame %zu: %s\n", i, aa_rx_sg_frame_name(cx.scenegraph, i));
+        printf("Frame %zu: %s (parent: %zu)\n", 
+			i, 
+			aa_rx_sg_frame_name(cx.scenegraph, i), 
+			aa_rx_sg_frame_parent(cx.scenegraph, i));
     }
     fflush(stdout);
 
@@ -283,7 +285,7 @@ int test_for_collisions( struct cx *cx ) {
     q_act_copy = (double*) aa_mem_region_local_alloc(sizeof(cx->q_act[0]) * (size_t)n_q);
     memcpy(q_act_copy, cx->q_act, sizeof(cx->q_act[0]) * (size_t)n_q);
     /* TODO: what should the time step be? */
-    cblas_daxpy((int)n_q, 3*dt, cx->dq_act, 1, cx->q_act, 1);
+    cblas_daxpy((int)n_q, 6*dt, cx->dq_act, 1, cx->q_act, 1);
 
     struct aa_rx_sg *scenegraph = cx->scenegraph;
 
@@ -338,7 +340,7 @@ void send_ref( struct cx *cx )
     struct sns_msg_motor_ref *msg = sns_msg_motor_ref_local_alloc((uint32_t)cx->n_q);
     struct timespec now;
     clock_gettime( ACH_DEFAULT_CLOCK, &now );
-    sns_msg_set_time( &msg->header, &now, 1e9 ); /* 1 second duration */
+    sns_msg_set_time( &msg->header, &now, 10e9 ); /* 10 second duration */
 
     msg->mode = SNS_MOTOR_MODE_HALT;
 

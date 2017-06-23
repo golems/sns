@@ -52,14 +52,14 @@ int main(int argc, char **argv)
 
     /* Defaults: must set before we parse the input args.  */
     follow_cx.mode = SNS_MOTOR_MODE_VEL;
-    follow_cx.k_p = 8.0;
+    follow_cx.k_p = 7.0;
     follow_cx.frequency = 110;
-    follow_cx.max_diverge = 0.2;
+    follow_cx.max_diverge = 0.3;
 
     follow_cx.new_traj = false;
     follow_cx.seg_list = NULL;
 
-    struct timespec period = aa_tm_sec2timespec( (1 / follow_cx.frequency) * 4);
+    struct timespec period = aa_tm_sec2timespec(1 / follow_cx.frequency);
 
     struct sns_motor_channel *last_mc = NULL;
 
@@ -165,10 +165,10 @@ int main(int argc, char **argv)
         aa_rx_sg_get_limit_eff(scenegraph, id, &ddqmin, &ddqmax);
 
         min_lim->q[i]   = qmin;
-        min_lim->dq[i]  = dqmin / 10;
+        min_lim->dq[i]  = dqmin / 30;
         min_lim->ddq[i] = ddqmin / 100; /* The URs are REALLY fast, let's slow that down. */
         max_lim->q[i]   = qmax;
-        max_lim->dq[i]  = dqmax / 10;
+        max_lim->dq[i]  = dqmax / 30;
         max_lim->ddq[i] = ddqmax / 100;
         printf("Config %s limits [%zu]\n\t Max: q = %f, dq = %f, ddq = %f\n\t "
                "Min: q = %f, dq = %f, ddq = %f\n",
@@ -334,6 +334,9 @@ enum ach_status exert_control(
     for (size_t i = 0; i < n_q; i++) {
         if (fabs(ideal->q[i] - current->X[i].pos) > cx->max_diverge) {
             printf("Diverged by %f at joint %zu\n", fabs(ideal->q[i] - current->X[i].pos), i);
+            for (size_t j = 0; j < n_q; j++) {
+	        printf("[%zu]: Ideal: %f, Current: %f\n", j, ideal->q[j], current->X[j].pos);
+	    }
             send_finish_and_stop(cx, now, DIVERGED);
             return (ACH_OK);
         }
@@ -341,7 +344,7 @@ enum ach_status exert_control(
 
     /* Send the motor reference message. */
     struct sns_msg_motor_ref *out_msg = sns_msg_motor_ref_local_alloc((uint32_t)n_q);
-    sns_msg_set_time(&out_msg->header, now, (int64_t)((1e9) / cx->frequency));
+    sns_msg_set_time(&out_msg->header, now, (int64_t)((1e9) * 3 / cx->frequency));
     out_msg->mode = cx->mode;
     if (cx->mode == SNS_MOTOR_MODE_POS) {
         for (size_t i = 0; i < n_q; i++) {
