@@ -2,6 +2,7 @@
  * sns-pblend.cpp
  * A process that converts sns_msg_path_dense into sns_msg_motor_states through
  * parabolic blending in amino.
+ * Inspired by code by Zak Kingston.
  *
  * Copyright (c) 2017 Rice University
  *
@@ -36,14 +37,117 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "1.0"
-#endif
+#include <stdbool.h>
 
-#include "sns/pblend.h"
+#include <amino.h>
+#include <amino/test.h>
+#include <amino/ct/state.h>
+#include <amino/ct/traj.h>
+#include <amino/rx/scenegraph.h>
+#include <amino/rx/rx_ct.h>
+
+#include <ach.h>
+#include <ach/generic.h>
+#include <ach/experimental.h>
+
+#include <sns.h>
+#include <sns/event.h>
+#include <sns/motor.h>
+#include <sns/path.h>
+#include <ach/experimental.h>
+
+#include <getopt.h>
+
+#include "config.h"
+
+/**
+ * An enum for the possible results of blending a path.
+ */
+enum blend_status {
+    OKAY, /* Blend completed okay. */
+    DIVERGED, /* Blend did not complete; actual configuration diverged too much from the ideal. */
+};
+
+/**
+ * The reply message sent to the path sender when the path is finished executing.
+ */
+struct msg_path_result {
+    struct sns_msg_header header; /* the message header, contains time sent. */
+    enum blend_status status; /* the returned status. */
+ };
+
+/**
+ * The context needed for continually following a trajectory.
+ */
+struct traj_follow_cx {
+    /** An amino memory region from which to allocate states and seg-lists. */
+    struct aa_mem_region *reg;
+
+    /** The channel to send motor references to (ideally the actual robot driver). */
+    struct sns_motor_channel *ref_out;
+    struct sns_motor_ref_set *ref_set;
+
+    /** The channel to return the final trajectory status. */
+    struct ach_channel finished_out;
+
+    /** The channel on which motor state in being recieved. */
+    struct sns_motor_channel *state_in;
+    struct sns_motor_state_set *state_set;
+
+    /** The number of configurations of the robot being controlled. */
+    size_t n_q;
+
+    /** How to send motor references to the robot driver. */
+    enum sns_motor_mode mode;
+
+    /** The proportional gain when following a trajectory. */
+    double k_p;
+
+    /** The maximum distance at a single condfiguration that the robot can diverge before halting. */
+    double max_diverge;
+
+    /** The frequency of the robot driver. Determines the duration of each ref. */
+    double frequency;
+
+    /** The blended path to follow. */
+    struct aa_ct_seg_list *seg_list;
+
+    /** The time that the execution of this path was started. */
+    double start_time;
+
+    /**
+     * If true, then you have recieved different trajectory to follow.
+     * Restart the start_time and follow the new trajectory.
+     */
+    bool new_traj;
+ };
+
+/**
+ * The context needed for handling waypoint paths.
+ */
+struct traj_blend_cx {
+    /** The channel on which path messages are being recieved. */
+    struct ach_channel path_in;
+
+    /** The limits of the robot for which the path is being blended. */
+    struct aa_ct_limit *limits;
+
+    /**
+     * Used to begin the process of trajectory following after the waypoints
+     * are blended.
+     */
+    struct traj_follow_cx *follow_cx;
+};
+
+struct aa_ct_pt_list *sns_to_amino_path(struct aa_mem_region *reg, struct sns_msg_path_dense *path);
+enum ach_status handle_blend_waypoint(void *cx_, void *msg_, size_t msg_size);
+enum ach_status exert_control(struct aa_ct_state *ideal, struct aa_ct_state *current, struct traj_follow_cx *cx, size_t n_q, struct timespec *now);
+enum ach_status periodic_follow_state(void *cx_);
 
 int main(int argc, char **argv)
 {
+    double velocity_slow = 30;
+    double accel_slow = 100;
     struct traj_blend_cx blend_cx;
     struct traj_follow_cx follow_cx;
 
@@ -146,7 +250,8 @@ int main(int argc, char **argv)
     follow_cx.reg = aa_mem_region_local_get();
 
     struct aa_rx_sg *scenegraph = sns_scene_load();
-    sns_motor_state_init(scenegraph, follow_cx.state_in, &follow_cx.state_set, 0, NULL);
+
+    size_t state_chan_count = sns_motor_channel_count(follow_cx.state_in);
     sns_motor_ref_init(scenegraph, follow_cx.ref_out, &follow_cx.ref_set, 0, NULL);
 
     /* Get the robot limits. */
@@ -155,52 +260,37 @@ int main(int argc, char **argv)
     const char **names = (const char **)malloc(sizeof(char *) * config_count);
     aa_rx_sg_config_names(scenegraph, config_count, names);
 
-    struct aa_ct_state *min_lim = aa_ct_state_alloc(follow_cx.reg, follow_cx.n_q, 0);
-    struct aa_ct_state *max_lim = aa_ct_state_alloc(follow_cx.reg, follow_cx.n_q, 0);
-    for (size_t i = 0; i < config_count; i++) {
-        double qmax, qmin, dqmax, dqmin, ddqmax, ddqmin;
-        aa_rx_config_id id = aa_rx_sg_config_id(scenegraph, names[i]);
-        aa_rx_sg_get_limit_pos(scenegraph, id, &qmin, &qmax);
-        aa_rx_sg_get_limit_vel(scenegraph, id, &dqmin, &dqmax);
-        aa_rx_sg_get_limit_eff(scenegraph, id, &ddqmin, &ddqmax);
+    struct aa_ct_limit *limits = aa_rx_ct_sg_limits(follow_cx.reg, scenegraph);
 
-        min_lim->q[i]   = qmin;
-        min_lim->dq[i]  = dqmin / 30;
-        min_lim->ddq[i] = ddqmin / 100; /* The URs are REALLY fast, let's slow that down. */
-        max_lim->q[i]   = qmax;
-        max_lim->dq[i]  = dqmax / 30;
-        max_lim->ddq[i] = ddqmax / 100;
+    for (size_t i = 0; i < config_count; i++) {
+        /* The URs are REALLY fast, let's slow that down. */
+        limits->min->dq[i] /= velocity_slow;
+        limits->max->dq[i] /= velocity_slow;
+        limits->min->ddq[i] /= accel_slow;
+        limits->max->ddq[i] /= accel_slow;
         printf("Config %s limits [%zu]\n\t Max: q = %f, dq = %f, ddq = %f\n\t "
                "Min: q = %f, dq = %f, ddq = %f\n",
-                names[i], i, max_lim->q[i], max_lim->dq[i], max_lim->ddq[i],
-                             min_lim->q[i], min_lim->dq[i], min_lim->ddq[i]);
+                names[i], i, limits->max->q[i], limits->max->dq[i], limits->max->ddq[i],
+                             limits->min->q[i], limits->min->dq[i], limits->min->ddq[i]);
     }
-    struct aa_ct_limit limits;
-    blend_cx.limits = &limits;
-
-    blend_cx.limits->max = max_lim;
-    blend_cx.limits->min = min_lim;
+    blend_cx.limits = limits;
 
     sns_chan_open(&blend_cx.path_in, path_channel_name, NULL);
     sns_chan_open(&follow_cx.finished_out, finished_channel_name, NULL);
     blend_cx.follow_cx = &follow_cx;
 
     /* Setup Event Handler. */
-    struct sns_evhandler handlers[2];
+    struct sns_evhandler handlers[state_chan_count + 1];
     handlers[0].channel = &blend_cx.path_in;
     handlers[0].context = &blend_cx;
     handlers[0].handler = handle_blend_waypoint;
     handlers[0].ach_options = ACH_O_LAST;
-
-    handlers[1].channel = &follow_cx.state_in->channel;
-    handlers[1].context = &follow_cx;
-    handlers[1].handler = handle_follow_state;
-    handlers[1].ach_options = ACH_O_LAST | ACH_O_WAIT;
+    sns_motor_state_init(scenegraph, follow_cx.state_in, &follow_cx.state_set, state_chan_count, handlers + 1);
 
     /* Run event loop. */
     enum ach_status r =
         sns_evhandle(handlers, 2,
-                     &period, NULL, NULL,
+                     &period, periodic_follow_state, &follow_cx,
                      sns_sig_term_default,
                      ACH_EV_O_PERIODIC_TIMEOUT);
 
@@ -213,6 +303,12 @@ int main(int argc, char **argv)
     return r;
 }
 
+ /**
+  * \brief The event handler for trajectory blending.
+  *
+  * cx_ is a traj_blend_cx, and msg_ is a waypoint path (sns_msg_path_dense).
+  * Blends the waypoints and sends the first sns_msg_motor_ref to the driver.
+  */
 enum ach_status handle_blend_waypoint(void *cx_, void *msg_, size_t msg_size)
 {
     struct traj_blend_cx *cx = (struct traj_blend_cx *)cx_;
@@ -238,27 +334,33 @@ enum ach_status handle_blend_waypoint(void *cx_, void *msg_, size_t msg_size)
  * Sends a message to the finish channel in the traj_follow context and resets the seg structs.
  */
 void send_finish_and_stop(struct traj_follow_cx *cx, struct timespec *now, enum blend_status status) {
-        struct msg_path_result result;
-        sns_msg_set_time(&result.header, now, (int64_t)(1e9));
-        result.status = status;
-        ach_put(&cx->finished_out, &result, sizeof(result));
+    struct msg_path_result result;
+    sns_msg_set_time(&result.header, now, (int64_t)(1e9));
+    result.status = status;
+    ach_put(&cx->finished_out, &result, sizeof(result));
 
-        aa_ct_seg_list_destroy(cx->seg_list);
-        cx->seg_list = NULL;
-        cx->new_traj = false;
+    aa_ct_seg_list_destroy(cx->seg_list);
+    cx->seg_list = NULL;
+    cx->new_traj = false;
 }
 
-enum ach_status handle_follow_state(void *cx_, void *msg_, size_t msg_size)
+/**
+ * \brief The function that follows a blended trajectory.
+ *
+ * cx_ is a traj_follow_cx, and msg_ is a sns_motor_state.
+ * Exerts KD-control on the robot to ensure that it follows the blended
+ * trajectory.
+ */
+enum ach_status periodic_follow_state(void *cx_)
 {
     struct traj_follow_cx *cx = (struct traj_follow_cx *)cx_;
-    struct sns_msg_motor_state *msg = (struct sns_msg_motor_state *)msg_;
+    struct aa_ct_state *latest = sns_motor_state_get(cx->state_set);
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
 
     double seconds = ((double) now.tv_sec + (double) now.tv_nsec / (double) 1e9L);
 
-    /* Verify our context. */
     if (cx->seg_list == NULL) {
         /* We haven't been sent a waypoint list yet. Just keep waiting. */
         return (ACH_OK);
@@ -267,34 +369,23 @@ enum ach_status handle_follow_state(void *cx_, void *msg_, size_t msg_size)
     size_t n_q = aa_ct_seg_list_n_q(cx->seg_list);
 
     /* Verify the message. */
-    if (sns_msg_motor_state_check_size(msg, msg_size)) {
-        printf("Mismatched message size on channel\n");
-        return (ACH_OK);
-    } else if (msg->header.n != n_q) {
-        SNS_LOG(LOG_ERR, "Motor state config size mismatch: header %u vs ours %zu\n", msg->header.n, n_q);
-        return (ACH_OK);
-    } else if (sns_msg_is_expired(&msg->header, &now)) {
-        fprintf(stdout, "expired message!\n");
+    if (latest->n_q != n_q) {
+        SNS_LOG(LOG_ERR, "Motor state config size mismatch: header %zu vs ours %zu\n",
+                latest->n_q, n_q);
         return (ACH_OK);
     }
 
     struct aa_ct_state *ideal = aa_ct_state_alloc(cx->reg, n_q, 0);
-    struct aa_ct_state *current = aa_ct_state_alloc(cx->reg, n_q, 0);
-    for (size_t i = 0; i < n_q; i++) {
-        current->q[i] = msg->X[i].pos;
-        current->dq[i] = msg->X[i].vel;
-    }
     if (cx->new_traj == true) {
         aa_ct_seg_list_eval(cx->seg_list, ideal, 0);
         /* Don't start if we're not close to the start state yet. */
-        if (aa_veq(n_q, ideal->q, current->q, 0.05)) {
+        if (aa_veq(n_q, ideal->q, latest->q, 0.05)) {
             cx->start_time = seconds;
             cx->new_traj = false;
         } else {
             /* Control yourself over there. */
-            enum ach_status ret = exert_control(ideal, msg, cx, n_q, &now);
+            enum ach_status ret = exert_control(ideal, latest, cx, n_q, &now);
             aa_mem_region_local_pop(ideal);
-            aa_mem_region_local_pop(current);
             return ret;
         }
     }
@@ -303,71 +394,80 @@ enum ach_status handle_follow_state(void *cx_, void *msg_, size_t msg_size)
     int r = aa_ct_seg_list_eval(cx->seg_list, ideal, reltime);
 
     if (reltime >= aa_ct_seg_list_duration(cx->seg_list) ||
-        r == AA_CT_SEG_OUT) {
-        // We've extended past the end of the trajectory. Reset and shoot a message to the
-        // the path sender.
-	if (aa_veq(n_q, ideal->q, current->q, 0.05)) {
+            r == AA_CT_SEG_OUT) {
+        /* We ran out of time. */
+        aa_ct_seg_list_eval(cx->seg_list, ideal, aa_ct_seg_list_duration(cx->seg_list) - 0.001);
+        if (aa_veq(n_q, ideal->q, latest->q, 0.05)) {
+            /* Let the path sender know we're done. */
             send_finish_and_stop(cx, &now, OKAY);
-            return (ACH_OK);
-	} else {
-	    /* Control yourself to the end, you're not there yet. */
-            enum ach_status ret = exert_control(ideal, msg, cx, n_q, &now);
             aa_mem_region_local_pop(ideal);
-            aa_mem_region_local_pop(current);
+            return (ACH_OK);
+        } else {
+            /* Control yourself to the end, you're not there yet. */
+            enum ach_status ret = exert_control(ideal, latest, cx, n_q, &now);
+            aa_mem_region_local_pop(ideal);
             return ret;
-	}
+        }
     }
 
-    enum ach_status status = exert_control(ideal, msg, cx, n_q, &now);
+    enum ach_status status = exert_control(ideal, latest, cx, n_q, &now);
     aa_mem_region_local_pop(ideal);
     return status;
 }
 
-
+/**
+ * \brief Does either position or velocity control to the ideal state from the current state.
+ */
 enum ach_status exert_control(
         struct aa_ct_state *ideal,
-        struct sns_msg_motor_state *current,
+        struct aa_ct_state *current,
         struct traj_follow_cx *cx,
         size_t n_q,
         struct timespec *now) {
     /* Check to see that the position hasn't diverged too much. */
     for (size_t i = 0; i < n_q; i++) {
-        if (fabs(ideal->q[i] - current->X[i].pos) > cx->max_diverge) {
-            printf("Diverged by %f at joint %zu\n", fabs(ideal->q[i] - current->X[i].pos), i);
+        if (fabs(ideal->q[i] - current->q[i]) > cx->max_diverge) {
+            printf("Diverged by %f at joint %zu\n", fabs(ideal->q[i] - current->q[i]), i);
             for (size_t j = 0; j < n_q; j++) {
-	        printf("[%zu]: Ideal: %f, Current: %f\n", j, ideal->q[j], current->X[j].pos);
-	    }
+                printf("[%zu]: Ideal: %f, Current: %f\n", j, ideal->q[j], current->q[j]);
+            }
             send_finish_and_stop(cx, now, DIVERGED);
             return (ACH_OK);
         }
     }
 
     /* Send the motor reference message. */
-    struct sns_msg_motor_ref *out_msg = sns_msg_motor_ref_local_alloc((uint32_t)n_q);
-    sns_msg_set_time(&out_msg->header, now, (int64_t)((1e9) * 3 / cx->frequency));
-    out_msg->mode = cx->mode;
     if (cx->mode == SNS_MOTOR_MODE_POS) {
         for (size_t i = 0; i < n_q; i++) {
-            out_msg->u[i] = ideal->q[i];
+            cx->ref_set->u[i] = ideal->q[i];
+            cx->ref_set->meta[i].mode = cx->mode;
         }
     } else if (cx->mode == SNS_MOTOR_MODE_VEL) {
-        for (size_t i = 0; i < n_q; i++) {    aa_mem_region_local_pop(ideal);
-            out_msg->u[i] = ideal->dq[i] - cx->k_p * (current->X[i].pos - ideal->q[i]);
+        for (size_t i = 0; i < n_q; i++) {
+            cx->ref_set->u[i] = ideal->dq[i] - cx->k_p * (current->q[i] - ideal->q[i]);
+            cx->ref_set->meta[i].mode = cx->mode;
         }
     } else {
         /* Bad motor mode? Write 0's to be safe. */
         printf("Bad motor mode: %d\n", cx->mode);
         for (size_t i = 0; i < n_q; i++) {
-            out_msg->u[i] = 0;
+            cx->ref_set->u[i] = 0;
+            cx->ref_set->meta[i].mode = SNS_MOTOR_MODE_VEL;
         }
     }
 
-    sns_msg_motor_ref_put(&cx->ref_out->channel, out_msg);
-    aa_mem_region_local_pop(out_msg);
+    sns_motor_ref_put(cx->ref_set, now, (int64_t) ((1e9) * 3 / cx->frequency));
     return (ACH_OK);
-
 }
 
+/**
+ * Turns sns dense paths into amino waypoint lists.
+ * reg is the amino memory region from which the waypoint list will be allocated.
+ *
+ * NOTE: the t0 and period fields of the path argument are not used: the given
+ * path is simply blended, and motor refs are sent with the current time and
+ * motor frequency instead.
+ */
 struct aa_ct_pt_list *sns_to_amino_path(struct aa_mem_region *reg, struct sns_msg_path_dense *path)
 {
     struct aa_ct_pt_list *aa_list = aa_ct_pt_list_create(reg);

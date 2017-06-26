@@ -23,7 +23,7 @@ double no_collision_positions[] = {
 };
 
 /** Waypoint path that collides with the table between points 2 and 3.*/
-double env_colliding_positions[] = {
+double env_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -31,7 +31,7 @@ double env_colliding_positions[] = {
 };
 
 /** Waypoint path that makes the robot collide with its own links.  */
-double self_colliding_positions[] = {
+double self_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.6,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -46,10 +46,9 @@ int main(void)
     sns_chan_open(&channel_path, "follow_path", NULL);
     struct sns_msg_path_dense *path = sns_msg_path_dense_alloc(N_STEPS, N_DOF);
 
-    double *positions = no_collision_positions;
     /* Put the positions array into the path message. */
     for (size_t i = 0; i < N_STEPS * N_DOF; i++) {
-        path->x[i] = positions[i];
+        path->x[i] = self_collision_positions[i];
     }
 
     /* Setup the rest of the message. */
