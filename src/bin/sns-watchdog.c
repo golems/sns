@@ -145,14 +145,27 @@ int main(int argc, char **argv)
      * But wait, there's more!
      * TODO: unhardcode for the UR5+gripper.
      */
-    aa_rx_sg_allow_collision_name(cx.scenegraph,
-            "robotiq_85_right_finger_tip_joint", "robotiq_85_right_finger_joint", true);
-    aa_rx_sg_allow_collision_name(cx.scenegraph,
-            "robotiq_85_left_finger_tip_joint", "robotiq_85_left_finger_joint", true);
-    aa_rx_sg_allow_collision_name(cx.scenegraph,
-            "fts_fix", "robotiq_85_base_joint", true);
-    aa_rx_sg_allow_collision_name(cx.scenegraph,
-            "fts_fix", "ee_link-collision", true);
+    if (aa_rx_sg_frame_id(cx.scenegraph, "robotiq_85_right_finder_tip_joint") == AA_RX_FRAME_NONE) {
+        // We're running on the two UR scene.
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "left_robotiq_85_right_finger_tip_joint", "left_robotiq_85_right_finger_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "left_robotiq_85_left_finger_tip_joint", "left_robotiq_85_left_finger_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "right_robotiq_85_right_finger_tip_joint", "right_robotiq_85_right_finger_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "right_robotiq_85_left_finger_tip_joint", "right_robotiq_85_left_finger_joint", true);
+    } else {
+        // Running on the 1 UR scene.
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "robotiq_85_right_finger_tip_joint", "robotiq_85_right_finger_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "robotiq_85_left_finger_tip_joint", "robotiq_85_left_finger_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "fts_fix", "robotiq_85_base_joint", true);
+        aa_rx_sg_allow_collision_name(cx.scenegraph,
+                "fts_fix", "ee_link-collision", true);
+    }
 
     for (aa_rx_frame_id i = 0; i < aa_rx_sg_frame_count(cx.scenegraph); i++) {
         printf("Frame %zu: %s (parent: %zu)\n",

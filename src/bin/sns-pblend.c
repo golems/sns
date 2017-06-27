@@ -314,7 +314,8 @@ enum ach_status handle_blend_waypoint(void *cx_, void *msg_, size_t msg_size)
     struct traj_blend_cx *cx = (struct traj_blend_cx *)cx_;
     struct sns_msg_path_dense *msg = (struct sns_msg_path_dense *)msg_;
 
-    fprintf(stdout, "Recieved a waypoint list.\n");
+    fprintf(stdout, "Recieved a waypoint list with %u steps and % dofs.\n",
+            msg->n_steps, msg->n_dof);
 
     /* Cleanup old lists. */
     if (cx->follow_cx->seg_list != NULL) {
