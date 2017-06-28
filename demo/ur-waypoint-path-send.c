@@ -4,17 +4,20 @@
  * author: Bryce Willey
  */
 
+#include "config.h"
+
 #include <sns.h>
 #include <sns/event.h>
 #include <ach.h>
+
+#include <getopt.h>
 
 
 /** 3 different waypoint path positions: 0 -> (N_DOF - 1) = joints at point 1... */
 /** Waypoint path with no collisions. */
 double one_no_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.6,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59,  0.5, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
@@ -22,7 +25,6 @@ double one_no_collision_positions[] = {
 double one_env_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
@@ -30,31 +32,33 @@ double one_env_collision_positions[] = {
 double one_self_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.6,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
 /** 3 more, meant for 2 UR5s. */
 double two_no_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.6,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        1.6,  0.0,  0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    
+    0.0, -1.59, 0.5, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59, 0.5, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
 double two_env_collision_positions[] = {
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+
+    0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0,  0.0,  0.0, -1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+
+    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.6,  0.0,  0.0,  1.59, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, -1.59, 0.0, -1.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 };
 
 int main(int argc, char **argv)
@@ -64,19 +68,62 @@ int main(int argc, char **argv)
     uint32_t n_dof; /* Number of degrees of freedom of the robot. */
     ach_channel_t channel_path;
 
-    if (argc == 1 || (argc == 2 && strcmp(argv[1], "one") == 0)) {
-        // Default path and scene.
+    char *path_channel_name = NULL;
+    int arm_count = 0;
+    /* Parse options. */
+    {
+        int c = 0;
+        opterr = 0;
+        while ( (c = getopt( argc, argv, "w:n:h:?" SNS_OPTSTRING)) != -1) {
+            switch(c) {
+                SNS_OPTCASES_VERSION("ur_send_waypoints",
+                                      "Copyright (c) 2017, Rice University\n",
+                                      "Bryce Willey")
+                case 'w':
+                    path_channel_name = optarg;
+                    break;
+                case 'n':
+                    arm_count= atoi(optarg);
+                    break;
+                case '?':
+                case 'h':
+                    puts ("Usage: sns-pblend -w PATH_CHANNEL -n NUM_ARMS\n"
+                                  "\n"
+                                  "Options:\n"
+                                  "  -w <channel>,             waypoint path output channel\n"
+                                  "  -n <num arms>             number of arms to control\n"
+                                  "  -V,                       Print program version\n"
+                                  "  -?/-h,                    display this help and exit\n"
+                                  "\n"
+                                  "Examples:\n"
+                                  "  sns-pblend -w follow_path -n 1\n"
+                                  "\n"
+                                  "Report bugs to <bsw2@rice.edu>"
+                    );
+                    exit(EXIT_SUCCESS);
+                default:
+                    SNS_DIE("Unknown option: '%c'\n", c);
+                    break;
+            }
+        }
+    }
+ 
+    sns_init();
+    SNS_REQUIRE(path_channel_name, "Need path channel");
+    SNS_REQUIRE(arm_count != 0, "Need arm count.");
+    n_steps = 3;
+    if (arm_count == 1) {
         positions = one_no_collision_positions;
-        n_steps = 4;
         n_dof = 12;
-    } else if (argc == 2 && strcmp(argv[1], "two") == 0) {
-        n_steps = 4;
+    } else if (arm_count == 2) {
+        positions = two_no_collision_positions;
         n_dof = 24;
-        positions = two_env_collision_positions;
+    } else {
+        printf("We can't control %d arms\n", arm_count);
+        exit(1);
     }
 
-    sns_init();
-    sns_chan_open(&channel_path, "follow_path", NULL);
+    sns_chan_open(&channel_path, path_channel_name, NULL);
     struct sns_msg_path_dense *path = sns_msg_path_dense_alloc(n_steps, n_dof);
 
     /* Put the positions array into the path message. */

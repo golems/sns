@@ -145,7 +145,7 @@ int main(int argc, char **argv)
      * But wait, there's more!
      * TODO: unhardcode for the UR5+gripper.
      */
-    if (aa_rx_sg_frame_id(cx.scenegraph, "robotiq_85_right_finder_tip_joint") == AA_RX_FRAME_NONE) {
+    if (aa_rx_sg_frame_id(cx.scenegraph, "robotiq_85_right_finger_tip_joint") == AA_RX_FRAME_NONE) {
         // We're running on the two UR scene.
         aa_rx_sg_allow_collision_name(cx.scenegraph,
                 "left_robotiq_85_right_finger_tip_joint", "left_robotiq_85_right_finger_joint", true);
