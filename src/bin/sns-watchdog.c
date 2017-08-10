@@ -68,10 +68,14 @@ struct cx {
 
     struct sns_evhandler *handlers;
 
+    /** Amount of time between calls to the periodic handler. */
     struct timespec period;
     struct timespec t;
 
+    /** The number of DoFs that the robot being watched has. */
     size_t n_q;
+
+    bool surpress_duplicate_output;
 };
 
 enum ach_status handle_ref_in( void *cx, void *msg, size_t msg_size );
@@ -93,7 +97,7 @@ int main(int argc, char **argv)
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-watchdog",
                                      "Copyright (c) 2015-2017, Rice University\n",
-                                     "Neil T. Dantam")
+                                     "Andrew Wells")
             case 'u':
                 sns_motor_channel_push(optarg, &cx.ref_out);
                 break;
@@ -167,7 +171,7 @@ int main(int argc, char **argv)
                 "fts_fix", "ee_link-collision", true);
     }
 
-    for (aa_rx_frame_id i = 0; i < aa_rx_sg_frame_count(cx.scenegraph); i++) {
+    for (aa_rx_frame_id i = 0; i < (aa_rx_frame_id)aa_rx_sg_frame_count(cx.scenegraph); i++) {
         printf("Frame %zu: %s (parent: %zu)\n",
             i,
             aa_rx_sg_frame_name(cx.scenegraph, i),
@@ -264,22 +268,32 @@ int test_for_collisions( struct cx *cx, struct timespec now) {
     struct aa_rx_cl_set * cl_set = aa_rx_cl_set_create(cx->scenegraph);
 
     if( aa_rx_cl_check(cl, n_tf, TF_abs, 14, cl_set)) {
-        for (aa_rx_frame_id i = 0; i < (aa_rx_frame_id)aa_rx_sg_frame_count(cx->scenegraph); i++) {
-            for (aa_rx_frame_id j = i; j < (aa_rx_frame_id)aa_rx_sg_frame_count(cx->scenegraph); j++) {
-                if (aa_rx_cl_set_get(cl_set, i, j)) {
-                    printf("Collision between %s and %s\n",
-                            aa_rx_sg_frame_name(cx->scenegraph, i),
-                            aa_rx_sg_frame_name(cx->scenegraph, j));
+        if (cx->surpress_duplicate_output == false) {
+            printf("Watchdog Config: ");
+            for (size_t i = 0; i < n_q; i++) {
+               printf("%f, ", q_act[i]);
+            }
+            printf("\n");
+            aa_rx_frame_id frame_count = (aa_rx_frame_id) aa_rx_sg_frame_count(cx->scenegraph);
+            for (aa_rx_frame_id i = 0; i < frame_count; i++) {
+                for (aa_rx_frame_id j = i; j < frame_count; j++) {
+                    if (aa_rx_cl_set_get(cl_set, i, j)) {
+                        printf("Collision between %s and %s\n",
+                                aa_rx_sg_frame_name(cx->scenegraph, i),
+                                aa_rx_sg_frame_name(cx->scenegraph, j));
+                    }
                 }
             }
+            fflush(stdout);
         }
+        /* If we have a collision again next time, don't print all of ths stuff again. */
+        cx->surpress_duplicate_output = true;
         memcpy(latest->q, q_act_copy, sizeof(latest->q[0]) * (size_t)n_q);
         aa_mem_region_local_pop(TF);
         aa_mem_region_local_pop(q_act_copy);
-        printf("collision found\n");
-        fflush(stdout);
         return 1;
     }
+    cx->surpress_duplicate_output = false;
 
     memcpy(latest->q, q_act_copy, sizeof(latest->q[0]) * (size_t)n_q);
     aa_mem_region_local_pop(TF);
@@ -297,7 +311,4 @@ void send_ref( struct cx *cx )
         cx->ref_set_out->meta[i].mode = SNS_MOTOR_MODE_HALT;
     }
     sns_motor_ref_put(cx->ref_set_out, &now, 20e9); /* 20 second duration. */
-
-    printf("halting robot\n");
-    fflush(stdout);
 }
