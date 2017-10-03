@@ -230,7 +230,7 @@ int main(int argc, char **argv)
                                   "Examples:\n"
                                   "  sns-pblend -y state -u ref -w path\n"
                                   "\n"
-                                  "Report bugs to <bsw2@rice.edu>"
+                                  "Report bugs to " PACKAGE_BUGREPORT
                     );
                     exit(EXIT_SUCCESS);
                 default:

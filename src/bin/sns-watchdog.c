@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                       "  -?,                       display this help and exit\n"
                       "\n"
                       "Examples:\n"
-                      "  sns-teleopd -j ref_in -y state -u ref\n"
+                      "  sns-watchdog -j ref_in -y state -u ref\n"
                       "\n"
                       "Report bugs to " PACKAGE_BUGREPORT );
                       exit(EXIT_SUCCESS);
