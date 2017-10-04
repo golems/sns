@@ -66,6 +66,7 @@
 enum blend_status {
     OKAY, /* Blend completed okay. */
     DIVERGED, /* Blend did not complete; actual configuration diverged too much from the ideal. */
+    // TODO: Add all control_msgs results.
 };
 
 /**
@@ -92,7 +93,11 @@ struct traj_follow_cx {
 
     /** The channel on which motor state in being recieved. */
     struct sns_motor_channel *state_in;
-    struct sns_motor_state_set *state_set;
+    struct sns_motor_state_set *state_set_in;
+
+    /** The channel on which ideal motor state in being published. */
+    struct sns_motor_channel *state_out;
+    struct sns_motor_state_set *state_set_out;
 
     /** The number of configurations of the robot being controlled. */
     size_t n_q;
@@ -173,7 +178,7 @@ int main(int argc, char **argv)
     {
         int c = 0;
         opterr = 0;
-        while ( (c = getopt( argc, argv, "y:u:p:w:m:k:f:h:?" SNS_OPTSTRING)) != -1) {
+        while ( (c = getopt( argc, argv, "y:z:u:p:w:m:k:f:h:?" SNS_OPTSTRING)) != -1) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-pblend",
                                       "Copyright (c) 2017, Rice University\n",
@@ -182,6 +187,9 @@ int main(int argc, char **argv)
                     sns_motor_channel_push(optarg, &follow_cx.state_in);
                     last_mc = follow_cx.state_in;
                     break;
+                case 'z':
+                    sns_motor_channel_push(optarg, &follow_cx.state_out);
+                    last_mc = follow_cx.state_out;
                 case 'u':
                     sns_motor_channel_push(optarg, &follow_cx.ref_out);
                     last_mc = follow_cx.ref_out;
@@ -190,7 +198,7 @@ int main(int argc, char **argv)
                     if (last_mc) {
                         last_mc->priority = atoi(optarg);
                     } else {
-                        SNS_DIE("No channel specificd or priority argument.");
+                        SNS_DIE("No channel specified or priority argument.");
                     }
                     break;
                 case 'w':
@@ -213,12 +221,13 @@ int main(int argc, char **argv)
                     break;
                 case '?':
                 case 'h':
-                    puts ("Usage: sns-pblend -u REF_CHANNEL -y STATE_CHANNEL -w PATH_CHANNEL\n"
+                    puts ("Usage: sns-pblend -u REF_CHANNEL -y STATE_IN_CHANNEL -z STATE_OUT_CHANNEL -w PATH_CHANNEL\n"
                                   "\n"
                                   "Options:\n"
                                   "  -y <channel>,             state input channel\n"
+                                  "  -z <channel>,             state output channel\n"
                                   "  -u <channel>,             reference output channel\n"
-                                  "  -p <priority>,            reference/state channel priority\n"
+
                                   "  -w <channel>,             waypoint path input channel\n"
                                   "  -f <channel>              finished reply output channel\n"
                                   "  -m <VEL or POS>           motor control mode, default = VEL\n"
@@ -228,7 +237,7 @@ int main(int argc, char **argv)
                                   "  -?/-h,                    display this help and exit\n"
                                   "\n"
                                   "Examples:\n"
-                                  "  sns-pblend -y state -u ref -w path\n"
+                                  "  sns-pblend -y state -z ideal -u ref -w path\n"
                                   "\n"
                                   "Report bugs to " PACKAGE_BUGREPORT
                     );
@@ -242,7 +251,8 @@ int main(int argc, char **argv)
 
     sns_init();
 
-    SNS_REQUIRE(follow_cx.state_in, "Need state channel");
+    SNS_REQUIRE(follow_cx.state_in, "Need state in channel");
+    SNS_REQUIRE(follow_cx.state_out, "Need state out channel");
     SNS_REQUIRE(follow_cx.ref_out, "Need reference channel");
     SNS_REQUIRE(path_channel_name != NULL, "Need path channel");
     SNS_REQUIRE(finished_channel_name != NULL, "Need finished channel");
@@ -285,11 +295,15 @@ int main(int argc, char **argv)
     handlers[0].context = &blend_cx;
     handlers[0].handler = handle_blend_waypoint;
     handlers[0].ach_options = ACH_O_LAST;
-    sns_motor_state_init(scenegraph, follow_cx.state_in, &follow_cx.state_set, state_chan_count, handlers + 1);
+    sns_motor_state_init(scenegraph, follow_cx.state_in, &follow_cx.state_set_in,
+                         state_chan_count, handlers + 1);
+    sns_motor_state_init(scenegraph, follow_cx.state_out, &follow_cx.state_set_out,
+                         0, NULL);
+
 
     /* Run event loop. */
     enum ach_status r =
-        sns_evhandle(handlers, 2,
+        sns_evhandle(handlers, state_chan_count + 1,
                      &period, periodic_follow_state, &follow_cx,
                      sns_sig_term_default,
                      ACH_EV_O_PERIODIC_TIMEOUT);
@@ -355,7 +369,7 @@ void send_finish_and_stop(struct traj_follow_cx *cx, struct timespec *now, enum 
 enum ach_status periodic_follow_state(void *cx_)
 {
     struct traj_follow_cx *cx = (struct traj_follow_cx *)cx_;
-    struct aa_ct_state *latest = sns_motor_state_get(cx->state_set);
+    struct aa_ct_state *latest = sns_motor_state_get(cx->state_set_in);
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -436,6 +450,11 @@ enum ach_status exert_control(
             return (ACH_OK);
         }
     }
+
+    /* Go ahead and publish the ideal position. */
+    struct aa_ct_state *state = sns_motor_state_get(cx->state_set_out);
+    aa_ct_state_clone(&cx->seg_list->reg, state, ideal);
+    sns_motor_state_put(cx->state_set_out, now, (int64_t)1e9);
 
     /* Send the motor reference message. */
     if (cx->mode == SNS_MOTOR_MODE_POS) {

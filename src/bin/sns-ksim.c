@@ -58,9 +58,9 @@ struct cx {
     struct aa_rx_sg *scenegraph;
 
     struct sns_motor_channel *ref_in;
-    struct sns_motor_channel *state_out;
-
     struct sns_motor_ref_set *ref_set;
+
+    struct sns_motor_channel *state_out;
     struct sns_motor_state_set *state_set;
 
     struct timespec t;
