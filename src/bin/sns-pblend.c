@@ -328,7 +328,7 @@ enum ach_status handle_blend_waypoint(void *cx_, void *msg_, size_t msg_size)
     struct traj_blend_cx *cx = (struct traj_blend_cx *)cx_;
     struct sns_msg_path_dense *msg = (struct sns_msg_path_dense *)msg_;
 
-    fprintf(stdout, "Recieved a waypoint list with %u steps and % dofs.\n",
+    fprintf(stdout, "Recieved a waypoint list with %u steps and %d dofs.\n",
             msg->n_steps, msg->n_dof);
 
     /* Cleanup old lists. */
@@ -453,7 +453,7 @@ enum ach_status exert_control(
 
     /* Go ahead and publish the ideal position. */
     struct aa_ct_state *state = sns_motor_state_get(cx->state_set_out);
-    aa_ct_state_clone(&cx->seg_list->reg, state, ideal);
+    aa_ct_state_clone(cx->reg, state, ideal);
     sns_motor_state_put(cx->state_set_out, now, (int64_t)1e9);
 
     /* Send the motor reference message. */
