@@ -16,6 +16,23 @@
 extern "C" {
 #endif
 
+/**
+ * An enum for the possible results of blending a path.
+ */
+enum blend_status {
+    OKAY, /* Blend completed okay. */
+    DIVERGED, /* Blend did not complete; actual configuration diverged too much from the ideal. */
+    // TODO: Add all control_msgs results.
+};
+
+/**
+ * The reply message sent to the path sender when the path is finished executing.
+ */
+struct msg_path_result {
+    struct sns_msg_header header; /* the message header, contains time sent. */
+    enum blend_status status; /* the returned status. */
+};
+
 
 /**
  * @struct sns_msg_path_dense
