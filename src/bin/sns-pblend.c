@@ -256,6 +256,7 @@ int main(int argc, char **argv)
 
     struct aa_ct_limit *limits = aa_rx_ct_sg_limits(follow_cx.reg, scenegraph);
 
+    fprintf(stdout, "Controlling using motor mode %s\n", (follow_cx.mode == SNS_MOTOR_MODE_VEL) ? "Velocity" : "Position");
     for (size_t i = 0; i < config_count; i++) {
         /* The URs are REALLY fast, let's slow that down. */
         limits->min->dq[i] /= velocity_slow;
