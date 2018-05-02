@@ -75,7 +75,7 @@ struct cx {
     /** The number of DoFs that the robot being watched has. */
     size_t n_q;
 
-    bool surpress_duplicate_output;
+    int surpress_output;
 };
 
 enum ach_status handle_ref_in( void *cx, void *msg, size_t msg_size );
@@ -268,7 +268,7 @@ int test_for_collisions( struct cx *cx, struct timespec now) {
     struct aa_rx_cl_set * cl_set = aa_rx_cl_set_create(cx->scenegraph);
 
     if( aa_rx_cl_check(cl, n_tf, TF_abs, 14, cl_set)) {
-        if (cx->surpress_duplicate_output == false) {
+        if (cx->surpress_output == 0) {
             printf("Watchdog Config: ");
             for (size_t i = 0; i < n_q; i++) {
                printf("%f, ", q_act[i]);
@@ -286,14 +286,14 @@ int test_for_collisions( struct cx *cx, struct timespec now) {
             }
             fflush(stdout);
         }
-        /* If we have a collision again next time, don't print all of ths stuff again. */
-        cx->surpress_duplicate_output = true;
+        /* Don't print all of the stuff again. */
+        cx->surpress_output = (cx->surpress_output + 1) % 1000;
         memcpy(latest->q, q_act_copy, sizeof(latest->q[0]) * (size_t)n_q);
         aa_mem_region_local_pop(TF);
         aa_mem_region_local_pop(q_act_copy);
         return 1;
     }
-    cx->surpress_duplicate_output = false;
+    cx->surpress_output = 0;
 
     memcpy(latest->q, q_act_copy, sizeof(latest->q[0]) * (size_t)n_q);
     aa_mem_region_local_pop(TF);

@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
     /* Defaults: must set before we parse the input args.  */
     follow_cx.mode = SNS_MOTOR_MODE_VEL;
-    follow_cx.k_p = 7.0;
+    follow_cx.k_p = 8.5;
     follow_cx.frequency = 250;
     follow_cx.max_diverge = 0.2;
 
@@ -401,7 +401,7 @@ enum ach_status periodic_follow_state(void *cx_)
     if (cx->new_traj == true) {
         aa_ct_seg_list_eval(cx->seg_list, ideal, 0);
         /* Don't start if we're not close to the start state yet. */
-        if (aa_veq(n_q, ideal->q, latest->q, 0.05)) {
+        if (aa_veq(n_q, ideal->q, latest->q, 0.009)) {
             cx->start_time = seconds;
             cx->new_traj = false;
             fprintf(stdout, "Officially starting the blended motion.\n");
@@ -422,17 +422,17 @@ enum ach_status periodic_follow_state(void *cx_)
         /* We ran out of time. */
         aa_ct_seg_list_eval(cx->seg_list, ideal, aa_ct_seg_list_duration(cx->seg_list) - 0.001);
         // TODO clean
-        //if (aa_veq(n_q, ideal->q, latest->q, 0.05)) {
+        if (aa_veq(n_q, ideal->q, latest->q, 0.009)) {
             /* Let the path sender know we're done. */
             send_finish_and_stop(cx, &now, OKAY);
             aa_mem_region_local_pop(ideal);
             return (ACH_OK);
-        //} else {
+        } else {
             /* Control yourself to the end, you're not there yet. */
-        //    enum ach_status ret = exert_control(ideal, latest, cx, n_q, &now);
-        //    aa_mem_region_local_pop(ideal);
-        //    return ret;
-       // }
+            enum ach_status ret = exert_control(ideal, latest, cx, n_q, &now);
+            aa_mem_region_local_pop(ideal);
+            return ret;
+        }
     }
 
     enum ach_status status = exert_control(ideal, latest, cx, n_q, &now);
