@@ -76,7 +76,9 @@ Makefile.in
 /doc/doxygen_sqlite3.db
 /doc/logtest
 /sns-joyd
+/sns-pblend
 /sns-teleopd
+/sns-watchdog
 /doc/command.md
 /doc/daemon.md
 /doc/driver.md
@@ -99,3 +101,4 @@ Makefile.in
 /demo/.libs/
 /demo/multi-ref-send
 /demo/multi-state-recv
+/demo/ur-waypoint-path-send

@@ -1,4 +1,4 @@
-ACLOCAL_AMFLAGS = -I m4
+ACLOCAL_AMFLAGS = -Im4
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 EXTRA_DIST =
@@ -7,13 +7,17 @@ noinst_PROGRAMS =
 bin_SCRIPTS =
 
 include_HEADERS = include/sns.h
-pkginclude_HEADERS =                              \
-	include/sns/msg.h                         \
-	include/sns/util.h                        \
-	include/sns/daemon.h			   \
-	include/sns/event.h			   \
-	include/sns/path.h                         \
-        include/sns/sdh_tactile.h
+pkginclude_HEADERS =              \
+	include/sns/msg.h         \
+	include/sns/util.h        \
+	include/sns/daemon.h      \
+	include/sns/event.h       \
+	include/sns/path.h        \
+	include/sns/sdh_tactile.h \
+        include/sns/motor.h       \
+        include/sns/joystick/gamepad.h \
+        include/sns/joystick/jachd.h \
+        include/sns/joystick/js.h
 
 
 init_ddir = $(sysconfdir)/init.d
@@ -72,11 +76,11 @@ libsns_msg_sdh_tactile_la_LIBADD = libsns.la
 
 bin_PROGRAMS += snsdump
 snsdump_SOURCES = src/snsdump.c
-snsdump_LDADD = libsns.la -lach -lamino
+snsdump_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsplot
 snsplot_SOURCES = src/snsplot.c
-snsplot_LDADD = libsns.la -lach -lamino
+snsplot_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += sns-trylock
 sns_trylock_SOURCES = src/sns-trylock.c
@@ -84,33 +88,41 @@ sns_trylock_SOURCES = src/sns-trylock.c
 
 bin_PROGRAMS += snslogd
 snslogd_SOURCES = src/snslogd.c
-snslogd_LDADD = libsns.la -lach -lamino
+snslogd_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snslog
 snslog_SOURCES = src/snslog.c
-snslog_LDADD = libsns.la -lach -lamino
+snslog_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsref
 snsref_SOURCES = src/snsref.c
-snsref_LDADD = libsns.la -lach -lamino
+snsref_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsrec
 snsrec_SOURCES = src/snsrec.c
-snsrec_LDADD = libsns.la -lach -lamino
+snsrec_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsreced
 snsreced_SOURCES = src/snsreced.c
-snsreced_LDADD = libsns.la -lach -lamino
+snsreced_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 bin_PROGRAMS += snsmplex
 snsmplex_SOURCES = src/bin/mplex.c
-snsmplex_LDADD = libsns.la -lach-experimental -lach -lamino
+snsmplex_LDADD = libsns.la $(AMINO_LIBS) $(ACH_LIBS)
 
 
 bin_PROGRAMS += sns-ksim
 sns_ksim_CFLAGS = $(SDL2_CFLAGS) $(GL_CFLAGS)
 sns_ksim_SOURCES = src/bin/sns-ksim.c
 sns_ksim_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl
+
+bin_PROGRAMS += sns-watchdog
+sns_watchdog_SOURCES = src/bin/sns-watchdog.c
+sns_watchdog_LDADD = libsns.la -lach-experimental -lach -lamino -lamino-gl -lamino-collision
+
+bin_PROGRAMS += sns-pblend
+sns_pblend_SOURCES = src/bin/sns-pblend.c
+sns_pblend_LDADD = libsns.la -lach-experimental -lach -lamino
 
 bin_PROGRAMS += sns-teleopd
 sns_teleopd_SOURCES = src/bin/sns-teleopd.c
@@ -137,6 +149,10 @@ demo_multi_ref_send_LDADD = libsns.la -lach -lamino
 noinst_PROGRAMS += demo/multi-state-recv
 demo_multi_state_recv_SOURCES = demo/multi-state-recv.c
 demo_multi_state_recv_LDADD = libsns.la -lach -lamino
+
+noinst_PROGRAMS += demo/ur-waypoint-path-send
+demo_ur_waypoint_path_send_SOURCES = demo/ur-waypoint-path-send.c
+demo_ur_waypoint_path_send_LDADD = libsns.la -lach -lamino
 
 bin_SCRIPTS += scripts/sns-joyd-logitech-f310 scripts/sns-joyd-logitech-dual-action
 

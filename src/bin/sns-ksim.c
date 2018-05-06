@@ -34,7 +34,7 @@
 #include "config.h"
 
 #include <poll.h>
-
+#include <stdbool.h>
 
 #include <getopt.h>
 
@@ -58,9 +58,9 @@ struct cx {
     struct aa_rx_sg *scenegraph;
 
     struct sns_motor_channel *ref_in;
-    struct sns_motor_channel *state_out;
-
     struct sns_motor_ref_set *ref_set;
+
+    struct sns_motor_channel *state_out;
     struct sns_motor_state_set *state_set;
 
     struct timespec t;
@@ -69,10 +69,10 @@ struct cx {
     uint64_t seq;
 
     struct aa_rx_win * win;
+    bool display_window;
 
     struct sns_evhandler *handlers;
     struct timespec period;
-
 };
 
 
@@ -91,6 +91,7 @@ int main(int argc, char **argv)
 {
     struct cx cx;
     AA_MEM_ZERO(&cx,1);
+    cx.display_window = true;
 
     const double opt_sim_frequecy = 100;
     struct sns_motor_channel *last_mc = NULL;
@@ -99,7 +100,7 @@ int main(int argc, char **argv)
     {
         int c = 0;
         opterr = 0;
-        while( (c = getopt( argc, argv, "y:u:p:h?" SNS_OPTSTRING)) != -1 ) {
+        while( (c = getopt( argc, argv, "y:u:p:lh?" SNS_OPTSTRING)) != -1 ) {
             switch(c) {
                 SNS_OPTCASES_VERSION("sns-ksim",
                                      "Copyright (c) 2017, Rice University\n",
@@ -119,6 +120,10 @@ int main(int argc, char **argv)
                     SNS_DIE("No channel specified for priority argument");
                 }
                 break;
+            case 'l':
+                // 'l' is for headless. Blame single letter flags for the ambiguity.
+                cx.display_window = false;
+                break;
             case '?':   /* help     */
             case 'h':
                 puts( "Usage: sns-ksim -u REF_CHANNEL -y STATE_CHANNEL\n"
@@ -129,6 +134,7 @@ int main(int argc, char **argv)
                       "  -u <channel>,             reference input channel\n"
                       "  -p <priority>,            channel priority\n"
                       "  -V,                       Print program version\n"
+                      "  -l,                       Don't display the graphics window (for ssh)\n"
                       "  -?,                       display this help and exit\n"
                       "\n"
                       "Environment:\n"
@@ -141,8 +147,7 @@ int main(int argc, char **argv)
                       "Examples:\n"
                       "  sns-ksim -y state -u ref\n"
                       "\n"
-                      "Report bugs to <ntd@rice.edu>"
-                    );
+                      "Report bugs to " PACKAGE_BUGREPORT);
                 exit(EXIT_SUCCESS);
             default:
                 SNS_DIE("Unknown Option: `%c'\n", c);
@@ -182,26 +187,28 @@ int main(int argc, char **argv)
              cx.period.tv_sec, cx.period.tv_nsec );
 
 
-    /* Start threads */
-    pthread_t io_thread;
-    if( pthread_create(&io_thread, NULL, io_start, &cx) ) {
-        SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
-    }
+    if (cx.display_window) {
+        /* Start threads */
+        pthread_t io_thread;
+        if( pthread_create(&io_thread, NULL, io_start, &cx) ) {
+            SNS_DIE("Could not create simulation thread: `%s'", strerror(errno));
+        }
 
-    /* Start GUI in main thread */
-    cx.win = aa_rx_win_default_create ( "sns-ksim", 800, 600 );
-    aa_rx_win_set_sg(cx.win, cx.scenegraph);
-    sns_start();
-    aa_rx_win_run();
+        /* Start GUI in main thread */
+        cx.win = aa_rx_win_default_create ( "sns-ksim", 800, 600 );
+        aa_rx_win_set_sg(cx.win, cx.scenegraph);
+        sns_start();
+        aa_rx_win_run();
 
-    /* Stop threads */
-    sns_cx.shutdown = 1;
-    if( pthread_join(io_thread, NULL) ) {
-        SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
+        /* Stop threads */
+        sns_cx.shutdown = 1;
+        if( pthread_join(io_thread, NULL) ) {
+            SNS_LOG(LOG_ERR, "Could not join simulation thread: `%s'", strerror(errno));
+        }
+    } else {
+        io(&cx);
     }
     sns_end();
-
-
 
     return 0;
 }
@@ -219,7 +226,7 @@ void io(struct cx *cx) {
                                       sns_sig_term_default,
                                       ACH_EV_O_PERIODIC_TIMEOUT );
     SNS_REQUIRE( sns_cx.shutdown || (ACH_OK == r),
-                 "Could asdf not handle events: %s, %s\n",
+                 "Could not handle events: %s, %s\n",
                  ach_result_to_string(r),
                  strerror(errno) );
 
@@ -257,6 +264,7 @@ enum ach_status simulate( struct cx *cx )
     struct timespec now;
     clock_gettime(ACH_DEFAULT_CLOCK, &now);
     double dt = aa_tm_timespec2sec( aa_tm_sub(now, cx->t) );
+
     cx->t = now;
 
     struct aa_ct_state *state = sns_motor_state_get(cx->state_set);
@@ -288,7 +296,7 @@ enum ach_status simulate( struct cx *cx )
                 SNS_LOG(LOG_WARNING, "Unhandled mode for motor %lu", i );
             }
         } else {
-            /* reference has expired */
+            /* reference has expired. */
             *dq = 0;
         }
     }
